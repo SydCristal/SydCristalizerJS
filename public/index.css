@@ -1,24 +1,24 @@
 html {
-  height: 100%;
+		height: 100%;
 }
 
 body {
-  margin: 0;
-  height: 100%;
-  background-color: black;
+		margin: 0;
+		height: 100%;
+		background-color: black;
 }
 
 #root {
-  height: 100%;
+		height: 100%;
 }
 
 * {
-  font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
-  color: #584658;
-  font-style: italic;
-  box-sizing: border-box;
+		font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+		color: #584658;
+		font-style: italic;
+		box-sizing: border-box;
 }
 
-*:disabled {
-  cursor: url('./backgrounds/CursorDisabled'), not-allowed;
-}
+		*:disabled {
+				cursor: url('./backgrounds/CursorDisabled'), not-allowed;
+		}

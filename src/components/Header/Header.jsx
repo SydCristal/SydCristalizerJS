@@ -1,4 +1,4 @@
-﻿import { useState } from 'react' 
+﻿import { useState } from 'react'
 import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useLanguageContext } from '../../contexts/LanguageContext'
 import { LanguageSwitch } from './LanguageSwitch'

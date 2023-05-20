@@ -18,7 +18,6 @@ const Decoration = styled.div`
 		height: 35px;
 `
 
-
 export function ButtonGroup({ children, decorate = true, spacing = '0px' }) {
 		return (
 				<Wrapper spacing={spacing}>

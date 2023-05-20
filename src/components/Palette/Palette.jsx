@@ -6,15 +6,15 @@ import { useLanguageContext } from '../../contexts/LanguageContext'
 import { SectionHeading } from '../UI'
 
 export default function Palette() {
-  const { modScheme } = useModSchemeContext()
-  const { language } = useLanguageContext()
-  if (!modScheme?.key) return <main />
+		const { modScheme } = useModSchemeContext()
+		const { language } = useLanguageContext()
+		if (!modScheme?.key) return <main />
 
-  l.setLanguage(language)
+		l.setLanguage(language)
 
-  return (
-    <aside>
-      <SectionHeading>{l.palette}</SectionHeading>
-    </aside>
-  )
+		return (
+				<aside>
+						<SectionHeading>{l.palette}</SectionHeading>
+				</aside>
+		)
 }
