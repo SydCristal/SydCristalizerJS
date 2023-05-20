@@ -1,0 +1,49 @@
+{
+		"key": "SydCristalizer",
+		"languages": [
+				"ruRU"
+		],
+		"modules": [
+				{
+						"key": "Thiefling",
+						"localization": {
+								"Title": {
+										"processTemplates": false,
+										"ruRU": "Убийственный переключатель",
+										"enGB": "Kill Switch"
+								},
+								"Description": {
+										"processTemplates": false,
+										"ruRU": "Description",
+										"enGB": "Requires game reboot, strongly advised to respec all affected characters before exiting the game."
+								}
+						},
+						"characters": [
+								"PC",
+								"Woljif"
+						],
+						"subModules": [
+								{
+										"name": "Thielfing",
+										"key": "Archetype",
+										"type": "Archetype",
+										"guid": "3f1b1c50-bcd2-4398-a1ad-5a92f24fb096"
+								},
+								{
+										"name": "Baphomet",
+										"key": "Bloodline",
+										"type": "Progression",
+										"guid": "339ad434-299d-42e8-93d2-40367d24a710"
+								},
+								{
+										"name": "Baphomet",
+										"key": "Heritage",
+										"type": "Feature",
+										"guid": "a1bb2fd2-09af-408f-a6a6-0a09059d3f8c"
+								}
+						],
+						"guid": "02d822b5-71c3-4e57-9d4b-e44c92c61dae"
+				}
+		],
+		"guid": "08a9d6e9-a1df-4ce5-8fb7-dfcb40833c24"
+}

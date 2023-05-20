@@ -1,0 +1,1 @@
+export const KEY_REGEXP = /^[a-zA-Z0-9_]+$/

@@ -1,0 +1,2 @@
+C:\Games\PathinderMods\SydCristalizer\SydCristalizerJS\obj\Debug\SydCristalizerJS.esproj.SuggestedBindingRedirects.cache
+C:\Games\PathinderMods\SydCristalizer\SydCristalizerJS\obj\Debug\SydCristalizerJS.esproj.CoreCompileInputs.cache
