@@ -7,7 +7,7 @@ const Heading = styled.h2`
 		text-align: center;
 		font-size: 30px;
 		min-height: 33px;
-		margin: 0px auto 25px;
+		margin: 0px auto 30px;
 		position: relative;
 		&::after {
 				content: '';

@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react'
 import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useLanguageContext } from '../../contexts/LanguageContext'
+import { useSelectionContext } from '../../contexts/SelectionContext'
 import { LanguageSwitch } from './LanguageSwitch'
 import styled from 'styled-components'
 import { SchemeDownloader, ProjectDownloader, SchemeUploader } from './'
@@ -62,12 +63,14 @@ const Input = styled.input`
 export default function Header() {
 		const { language } = useLanguageContext()
 		const { modScheme, setModScheme } = useModSchemeContext()
+		const { setSelection } = useSelectionContext()
 		const [modKey, setModKey] = useState(modScheme?.key || '')
 		const disabled = !modScheme?.key
 		l.setLanguage(language)
 
 		const onClearButtonClick = () => {
 				setModScheme(null)
+				setSelection(null)
 				setModKey('')
 		}
 
@@ -87,7 +90,7 @@ export default function Header() {
 						type: 'mod',
 						localization: {
 								Title: {
-										enEN: 'SydCristalizer',
+										enGB: 'SydCristalizer',
 										ruRU: 'SydCristalизатор'
 								}
 						},
