@@ -41,6 +41,33 @@ const HeaderWrapper = styled.div`
 			* {
 				color: wheat;
 			};
+			> .error-tooltip-content {
+				display: none;
+			};
+			&.error-tooltip {
+				background: ${Bg('ErrorTooltip')} center top / cover no-repeat;
+				border: 2px solid maroon;
+				box-sizing: border-box;
+				> :not(.error-tooltip-content) {
+					display: none;
+				};
+				> .error-tooltip-content {
+						display: flex;
+						flex-direction: row;
+						padding: 5px 0;
+						div {
+								background: ${Bg('Clear_selected')} center top / cover no-repeat;
+								display: inline-block;
+								width: 20px;
+								height: 20px;
+								margin-right: 5px;
+						};
+						span {
+							font-size: 18px;
+							line-height: 18px;
+						}
+				};
+			}
 		};
 		&:hover {
 				> * {
@@ -113,6 +140,9 @@ export default function Navigation() {
 		const draggedCloneRef = useRef(null)
 		const droppableTargetRef = useRef(null)
 
+		if (!modScheme?.key) return <aside />
+		l.setLanguage(language)
+
 		const onMouseMove = e => {
 				const { clientX, clientY } = e
 				const clone = draggedCloneRef.current
@@ -125,7 +155,9 @@ export default function Navigation() {
 
 				clone.style.transform = `translate(${clientX}px, ${clientY}px)`
 
-				let target = e.target.classList.contains('navigation-item') ? e.target : e.target.closest('.navigation-item')
+				if (!e.target?.tagName) return
+
+				let target = e.target.classList?.contains('navigation-item') ? e.target : e.target.closest('.navigation-item')
 
 				if (!target) {
 						droppableTargetRef.current = null
@@ -139,10 +171,19 @@ export default function Navigation() {
 
 				const { dataset: { namespace, childrenKeys } } = target
 
+				if (namespace.startsWith(clone.dataset?.namespace) && namespace.startsWith !== clone.dataset?.namespace) {
+						clone.classList.add('error-tooltip')
+						clone.querySelector('.error-tooltip-content').querySelector('span').textContent = l.recursionIsNotAllowed
+						droppableTargetRef.current = null
+						document.querySelector('#navigation')?.querySelector('.targeted')?.classList.remove('targeted')
+						return
+				}
+
 				if (namespace === droppableTargetRef.current?.namespace) return
 
 				document.querySelector('#navigation')?.querySelector('.targeted')?.classList.remove('targeted')
 				target.classList.add('targeted')
+				clone.classList.remove('error-tooltip')
 		}
 
 		const onMouseDown = e => {
@@ -163,8 +204,13 @@ export default function Navigation() {
 						clone.style.left = `${parseInt(left) - clientX}px`
 						clone.style.top = `${parseInt(top) - clientY}px`
 						clone.style.transform = `translate(${clientX}px, ${clientY}px)`
-						clone.style.minWidth = `${clientWidth}px`
+						clone.style.width = `${clientWidth}px`
 						clone.style.minHeight = `${clientHeight}px`
+						const tip = document.createElement('div')
+						tip.classList.add('error-tooltip-content')
+						tip.appendChild(document.createElement('div'))
+						tip.appendChild(document.createElement('span'))
+						clone.appendChild(tip)
 						clone.inert = true
 						document.getElementById('root').appendChild(clone)
 						draggedCloneRef.current = clone
@@ -182,18 +228,15 @@ export default function Navigation() {
 						draggedSourceRef.current = null
 				}
 
-				const clone = draggedCloneRef.current
-				if (clone) {
-						draggedCloneRef.current = null
-						clone.remove()
-				}
+				//const clone = draggedCloneRef.current
+				//if (clone) {
+				//		draggedCloneRef.current = null
+				//		clone.remove()
+				//}
 
 				window.removeEventListener('mousemove', onMouseMove)
 				window.removeEventListener('mouseup', onMouseUp)
 		}
-
-		if (!modScheme?.key) return <aside />
-		l.setLanguage(language)
 
 		const buildAccordionItem = (el, displayed, depth) => {
 				const { key, type, items, modules, namespace, path } = el
@@ -231,7 +274,7 @@ export default function Navigation() {
 
 						const dragHandleStyles = {
 								background: `${Bg('DragHandle' + (selected ? '_selected' : ''))} center center / contain no-repeat`,
-								marginRight: `${(depth - 1) * 15 + (expandable ? 5 : 15)}px`
+								marginRight: `${(depth - 1) * 15 + 5}px`
 						}
 
 						const displayedName = displayNames ? el.localization?.Title[language] || key : key

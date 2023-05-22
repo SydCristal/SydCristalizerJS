@@ -6,7 +6,7 @@ export const l = new LocalizedStrings({
 				displayNames: 'Display names',
 				displayKeys: 'Display ID',
 				targetHasNoStructure: 'Target can`t contain elemets',
-				recursionIsNotAllowed: 'Element can`t be dropped inside itself',
+				recursionIsNotAllowed: 'Element can`t be dropped inside it`s descendant',
 				targetContainsKey: 'Target already contains a child with the same ID'
 		},
 		ruRU: {
@@ -14,7 +14,7 @@ export const l = new LocalizedStrings({
 				displayNames: 'Отображать названия',
 				displayKeys: 'Отображать ID',
 				targetHasNoStructure: 'Цель не может содержать элементы',
-				recursionIsNotAllowed: 'Элемент не может быть вложен в себя',
+				recursionIsNotAllowed: 'Элемент не может быть помещён в собственный внутренный элемент',
 				targetContainsKey: 'Цель уже содержит элемент с таким ID'
 		}
 })
