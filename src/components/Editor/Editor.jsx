@@ -10,15 +10,15 @@ const Main = styled.main`
 `
 
 export default function Palette() {
-  const { modScheme } = useModSchemeContext()
-  const { language } = useLanguageContext()
-  if (!modScheme?.key) return <main />
+		const { modScheme } = useModSchemeContext()
+		const { language } = useLanguageContext()
+		if (!modScheme?.key) return <main />
 
-  l.setLanguage(language)
+		l.setLanguage(language)
 
-  return (
-    <Main>
-      <SectionHeading>{l.editor}</SectionHeading>
-    </Main>
-  )
+		return (
+				<Main>
+						<SectionHeading>{l.editor}</SectionHeading>
+				</Main>
+		)
 }

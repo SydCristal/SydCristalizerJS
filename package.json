@@ -16,6 +16,7 @@
 				"react-localization": "^1.0.19",
 				"react-scripts": "5.0.1",
 				"styled-components": "^5.3.10",
+				"react-modal": "^3.16.1",
 				"uuid": "^9.0.0"
 		},
 		"scripts": {
