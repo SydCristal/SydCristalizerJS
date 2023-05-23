@@ -38,6 +38,8 @@ const HeaderWrapper = styled.div`
 		&.dragged-clone {
 			background: ${({ cloneBg }) => cloneBg};
 			height: fit-content;
+			position: absolute;
+			z-index: 1000;
 			* {
 				color: wheat;
 			};
@@ -45,8 +47,9 @@ const HeaderWrapper = styled.div`
 				display: none;
 			};
 			&.error-tooltip {
-				background: ${Bg('ErrorTooltip')} center top / cover no-repeat;
+				background: ${Bg('ErrorTooltip')} left top / cover no-repeat;
 				border: 2px solid maroon;
+				padding: 5px 8px 8px;
 				box-sizing: border-box;
 				> :not(.error-tooltip-content) {
 					display: none;
@@ -54,7 +57,6 @@ const HeaderWrapper = styled.div`
 				> .error-tooltip-content {
 						display: flex;
 						flex-direction: row;
-						padding: 5px 0;
 						div {
 								background: ${Bg('Clear_selected')} center top / cover no-repeat;
 								display: inline-block;
@@ -143,6 +145,11 @@ export default function Navigation() {
 		if (!modScheme?.key) return <aside />
 		l.setLanguage(language)
 
+		const removeTarget = () => {
+				document.querySelector('#navigation')?.querySelector('.targeted')?.classList.remove('targeted')
+				droppableTargetRef.current = null
+		}
+
 		const onMouseMove = e => {
 				const { clientX, clientY } = e
 				const clone = draggedCloneRef.current
@@ -153,37 +160,47 @@ export default function Navigation() {
 						return
 				}
 
+				const cleanClone = () => {
+						clone.classList.remove('error-tooltip')
+						removeTarget()
+				}
+
+				const displayErrorTooltip = msg => {
+						clone.classList.add('error-tooltip')
+						clone.querySelector('.error-tooltip-content').querySelector('span').textContent = l[msg]
+						removeTarget()
+				}
+
+				const { key, namespace: cloneNamespace } = clone.dataset
 				clone.style.transform = `translate(${clientX}px, ${clientY}px)`
 
-				if (!e.target?.tagName) return
+				if (!e.target?.tagName) return cleanClone()
 
 				let target = e.target.classList?.contains('navigation-item') ? e.target : e.target.closest('.navigation-item')
 
-				if (!target) {
-						droppableTargetRef.current = null
-						document.querySelector('#navigation')?.querySelector('.targeted')?.classList.remove('targeted')
-						return
-				}
+				if (!target) return cleanClone()
 
 				if (target.dataset.navigationItemType === 'item') {
 						target = target.parentElement.previousElementSibling
 				}
 
-				const { dataset: { namespace, childrenKeys } } = target
+				const { dataset: { namespace: targetNamespace, childrenKeys } } = target
 
-				if (namespace.startsWith(clone.dataset?.namespace) && namespace.startsWith !== clone.dataset?.namespace) {
-						clone.classList.add('error-tooltip')
-						clone.querySelector('.error-tooltip-content').querySelector('span').textContent = l.recursionIsNotAllowed
-						droppableTargetRef.current = null
-						document.querySelector('#navigation')?.querySelector('.targeted')?.classList.remove('targeted')
-						return
+				if (targetNamespace === cloneNamespace) return cleanClone()
+
+				if (targetNamespace.startsWith(cloneNamespace)) {
+						return displayErrorTooltip('recursionIsNotAllowed')
 				}
 
-				if (namespace === droppableTargetRef.current?.namespace) return
+				if (childrenKeys && childrenKeys.split(',').includes(key)) {
+						if (`${targetNamespace}.${key}` === cloneNamespace) return cleanClone()
+						return displayErrorTooltip('targetContainsKey')
+				}
 
 				document.querySelector('#navigation')?.querySelector('.targeted')?.classList.remove('targeted')
-				target.classList.add('targeted')
 				clone.classList.remove('error-tooltip')
+				target.classList.add('targeted')
+				droppableTargetRef.current = target
 		}
 
 		const onMouseDown = e => {
@@ -199,8 +216,6 @@ export default function Navigation() {
 						const clone = source.cloneNode(true)
 						source.style.opacity = 0
 						clone.classList.add('dragged-clone')
-						clone.style.position = 'absolute'
-						clone.style.zIndex = 1000
 						clone.style.left = `${parseInt(left) - clientX}px`
 						clone.style.top = `${parseInt(top) - clientY}px`
 						clone.style.transform = `translate(${clientX}px, ${clientY}px)`
@@ -221,18 +236,55 @@ export default function Navigation() {
 		}
 
 		const onMouseUp = e => {
-				const source = draggedSourceRef.current
+				let source = draggedSourceRef.current
 				if (source) {
 						source.closest('aside').classList.remove('dragging')
 						source.style.opacity = 1
 						draggedSourceRef.current = null
 				}
 
-				//const clone = draggedCloneRef.current
-				//if (clone) {
-				//		draggedCloneRef.current = null
-				//		clone.remove()
-				//}
+				const clone = draggedCloneRef.current
+				if (clone) {
+						draggedCloneRef.current = null
+						clone.remove()
+				}
+
+				let target = droppableTargetRef.current
+				if (target) {
+						removeTarget()
+				}
+
+				if (source && target) {
+						const { dataset: { key: sourceKey, path: sourcePath, navigationItemType: sourceType } } = source
+						const { dataset: { path: targetPath, navigationItemType: targetType } } = target
+
+						const updatedModScheme = _.cloneDeep(modScheme)
+
+						const sourceObj = _.get(updatedModScheme, sourcePath)
+						const sourceGroup = `${sourceType}s`
+						if (targetType !== 'mod') {
+								_.update(updatedModScheme, targetPath, targetObj => {
+										const updatedObj = _.cloneDeep(targetObj)
+										if (updatedObj[sourceGroup]) {
+												updatedObj[sourceGroup].push(sourceObj)
+										} else {
+												updatedObj[sourceGroup] = [sourceObj]
+										}
+
+										return updatedObj
+								})
+						} else {
+								if (updatedModScheme[sourceGroup]) {
+										updatedModScheme[sourceGroup].push(sourceObj)
+								} else {
+										updatedModScheme[sourceGroup] = [sourceObj]
+								}
+						}
+
+						_.update(updatedModScheme, sourcePath.slice(0, -3), arr => arr.filter(({ key }) => key !== sourceKey))
+
+						setModScheme(updatedModScheme)
+				}
 
 				window.removeEventListener('mousemove', onMouseMove)
 				window.removeEventListener('mouseup', onMouseUp)
@@ -288,97 +340,13 @@ export default function Navigation() {
 						if (items) childrenKeys.push(...items.map(({ key }) => key))
 						if (modules) childrenKeys.push(...modules.map(({ key }) => key))
 
-						//const onDragStart = e => {
-						//		console.log('DRAGSTART!!!')
-						//		//setDraggedEl({ ...el })
-						//		draggedEl = { ...el }
-						//		window.addEventListener('mousemove', onMouseMove)
-						//		window.addEventListener('mouseup', onMouseUp)
-						//		//const mask = draggedCloneRef.current
-						//		//mask.innerHTML = displayedName
-						//		//e.dataTransfer.setDragImage(mask, 0, 0)
-						//}
-
-						//const onDragEnd = e => {
-						//		console.log('DRAGEND???')
-						//		window.removeEventListener('mousemove', onMouseMove)
-						//		window.removeEventListener('mouseup', onMouseUp)
-						//		//setDraggedEl(null)
-						//		draggedEl = null
-						//}
-
-						//const onDrop = e => {
-						//		console.log('DRAGEND???')
-						//		window.removeEventListener('mousemove', onMouseMove)
-						//		window.removeEventListener('mouseup', onMouseUp)
-						//		const { target } = e
-						//		if (target.tagName === 'DIV') {
-						//				target.classList?.remove('targeted')
-						//		} else {
-						//				target.closest('div').classList?.remove('targeted')
-						//		}
-						//
-						//		const { namespace, ...updatedModScheme } = _.cloneDeep(modScheme)
-						//		const groupName = `${draggedEl.type}s`
-						//		const { path: draggedElPath, namespace: draggedElNamespace, ...draggedElData } = draggedEl
-						//		const { path: _p, namespace: _n, ...elData } = el
-						//		if (!el[groupName]) el[groupName] = []
-						//		if (path?.length) {
-						//				_.update(updatedModScheme, path, () => ({
-						//						...elData,
-						//						[groupName]: [...el[groupName], draggedElData]
-						//				}))
-						//		} else {
-						//				if (!updatedModScheme[groupName]) updatedModScheme[groupName] = []
-						//				updatedModScheme[groupName].push(draggedElData)
-						//		}
-						//		if (selection?.namespace.startsWith(draggedElNamespace)) setSelection(el)
-						//		_.unset(updatedModScheme, draggedElPath)
-						//		_.update(updatedModScheme, draggedElPath.slice(0, -3), children => children.filter(child => child))
-						//		//setDraggedEl(null)
-						//		draggedEl = null
-						//		setModScheme(updatedModScheme)
-						//}
-
-						//const onDragOver = e => {
-						//		if (type === 'item') return
-						//		if (namespace.startsWith(draggedEl.namespace)) return
-						//		if (childrenKeys.includes(draggedEl.key)) return
-						//		const { target } = e
-						//
-						//		if (target.tagName === 'DIV') {
-						//				target.classList?.add('targeted')
-						//		} else {
-						//				target.closest('div').classList?.add('targeted')
-						//		}
-						//
-						//		e.preventDefault()
-						//		e.stopPropagation()
-						//}
-						//
-						//const onDragLeave = e => {
-						//		const { target } = e
-						//
-						//		if (target.tagName === 'DIV') {
-						//				target.classList?.remove('targeted')
-						//		} else {
-						//				target.closest('div').classList?.remove('targeted')
-						//		}
-						//}
-
 						const onAddElClick = e => {
 								console.log(el)
 						}
 
-						//onDragOver = { onDragOver }
-						//onDragLeave = { onDragLeave }
-						//onDragStart = { onDragStart }
-						//onDragEnd = { onDragEnd }
-						//	onDrop = { onDrop }	draggable={!!depth}
-						//onMouseDown = { onMouseDown }
-
 						return (
 								<HeaderWrapper
+										data-key={key}
 										data-path={path}
 										data-namespace={namespace}
 										data-navigation-item-type={type}
@@ -448,5 +416,3 @@ export default function Navigation() {
 				</Aside>
 		)
 }
-
-				//{(displayNames && draggedEl?.localization?.Title?.[language]) || draggedEl?.key || ''}

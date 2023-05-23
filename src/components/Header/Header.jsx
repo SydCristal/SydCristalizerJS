@@ -98,11 +98,15 @@ export default function Header() {
 						modules: [{
 								key: 'Zorg',
 								type: 'module',
+								modules: [{
+										key: 'Jog',
+										type: 'module'
+								}],
 								items: [{
 										key: 'HOBOROBOT666',
 										type: 'item'
 								}, {
-										key: 'Satan',
+										key: 'Bleurge',
 										type: 'item'
 										}]
 						}, {
