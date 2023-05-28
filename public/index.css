@@ -19,6 +19,7 @@ body {
 		box-sizing: border-box;
 }
 
+		*.disabled,
 		*:disabled {
-				cursor: url('./backgrounds/CursorDisabled'), not-allowed;
+				cursor: url('./backgrounds/CursorDisabled.png'), not-allowed;
 		}

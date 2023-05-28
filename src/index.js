@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { CreationProvider } from './contexts/CreationContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { ModSchemeProvider } from './contexts/ModSchemeContext'
 import { SelectionProvider } from './contexts/SelectionContext'
@@ -12,7 +13,9 @@ root.render(
     <LanguageProvider>
       <ModSchemeProvider>
         <SelectionProvider>
-          <App />
+          <CreationProvider>
+            <App />
+          </CreationProvider>
         </SelectionProvider>
       </ModSchemeProvider>
     </LanguageProvider>

@@ -84,38 +84,9 @@ export default function Header() {
 				if (modKey === '') return
 
 				setModScheme({
-						...modScheme,
 						key: modKey,
 						namespace: modKey,
-						type: 'mod',
-						localization: {
-								Title: {
-										enGB: 'SydCristalizer',
-										ruRU: 'SydCristalизатор'
-								}
-						},
-						menu: [],
-						modules: [{
-								key: 'Zorg',
-								type: 'module',
-								modules: [{
-										key: 'Jog',
-										type: 'module'
-								}],
-								items: [{
-										key: 'HOBOROBOT666',
-										type: 'item'
-								}, {
-										key: 'Bleurge',
-										type: 'item'
-										}]
-						}, {
-								key: 'Bleurge',
-								type: 'module'
-						}, {
-								key: 'Jog',
-								type: 'module'
-						}]
+						type: 'mod'
 				})
 		}
 

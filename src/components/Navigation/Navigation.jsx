@@ -2,6 +2,7 @@
 import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useLanguageContext } from '../../contexts/LanguageContext'
 import { useSelectionContext } from '../../contexts/SelectionContext'
+import { useCreationContext } from '../../contexts/CreationContext'
 import { Accordion, AccordionBody, AccordionHeader, AccordionItem } from 'react-headless-accordion'
 import { Bg } from '../../Utils'
 import styled, { css } from 'styled-components'
@@ -9,7 +10,8 @@ import { SectionHeading, Button } from '../UI'
 import _ from 'lodash'
 import { useState, useRef } from 'react'
 
-const Aside = styled(Accordion)``
+const Aside = styled(Accordion)`
+`
 
 const HeaderWrapper = styled.div`
 		${({ cloneBg, targetedBg, color, ...styles }) => ({ ...styles })};
@@ -17,7 +19,9 @@ const HeaderWrapper = styled.div`
 		display: flex;
 		flex-direction: row;
 		align-items: center;
+		position: relative;
 		cursor: pointer;
+		border: 2px solid transparent;
 		* {
 				margin: 0;
 				color: ${({ color }) => color};
@@ -29,10 +33,26 @@ const HeaderWrapper = styled.div`
 		${Aside}.dragging & {
 				background: none;
 				&.targeted {
-					background: ${({ targetedBg }) => targetedBg};
 					background-color: rgba(82, 0, 137, 0.2);
-					border-top: 2px solid #4b2f5b;
-					border-bottom: 2px solid #4b2f5b;
+					border: 2px solid #45204e;
+					&::before {
+						content: '';
+						background: ${Bg('DropTargetDecoration_left')} left center / contain no-repeat;
+						height: 100%;
+						width: 20px;
+						position: absolute;
+						left: 0;
+						top: 0;
+					};
+					&::after {
+						content: '';
+						background: ${Bg('DropTargetDecoration_right')} right center / contain no-repeat;
+						height: 100%;
+						width: 20px;
+						position: absolute;
+						right: 0;
+						top: 0;
+					};
 				};
 		};
 		&.dragged-clone {
@@ -48,6 +68,7 @@ const HeaderWrapper = styled.div`
 			};
 			&.error-tooltip {
 				background: ${Bg('ErrorTooltip')} left top / cover no-repeat;
+				background-color: rgba(0, 0, 0, 0.3);
 				border: 2px solid maroon;
 				padding: 5px 8px 8px;
 				box-sizing: border-box;
@@ -120,6 +141,7 @@ const AddElIcon = styled.button`
 		${({ background }) => ({ background, ...iconStyles })};
 		opacity: 0;
 		transition: opacity 0.2s ease-in-out;
+		margin-left: 5px;
 		${Aside}.dragging & {
 				opacity: 0 !important;
 		};
@@ -128,15 +150,13 @@ const AddElIcon = styled.button`
 const Content = styled(AccordionBody)`
 		margin: ${({ displayed }) => displayed ? '-3px' : 0} 0;
 		padding: ${({ displayed }) => displayed ? '3px' : 0} 0;
-		transition: margin-top 0.3s ease-in-out, margin-bottom 0.3s ease-in-out,
-														padding-top 0.3s ease-in-out, padding-bottom 0.3s ease-in-out,
-														max-height 0.3s ease-in-out !important;
 `
 
 export default function Navigation() {
 		const { modScheme, setModScheme } = useModSchemeContext()
 		const { language } = useLanguageContext()
 		const { selection, setSelection } = useSelectionContext()
+		const { setCreation } = useCreationContext()
 		const [displayNames, setDisplayNames] = useState(JSON.parse(localStorage.getItem('displayNames')) || false)
 		const draggedSourceRef = useRef(null)
 		const draggedCloneRef = useRef(null)
@@ -298,7 +318,7 @@ export default function Navigation() {
 				const hasSelectedDescendant = expandable && !selected && selection?.namespace?.startsWith(namespace)
 
 				const buildAccordionHeader = expanded => {
-						const height = `${depth === 0 ? 35 : ((type !== 'item' || selected) ? 30 : 24)}px`
+						const height = `${depth === 0 ? 35 : 30}px`
 						const paddingLeft = depth === 0 ? 25 : 10
 						const selectedBg = `${Bg('NavigationItem_selected')} center center / cover no-repeat`
 
@@ -310,9 +330,9 @@ export default function Navigation() {
 								paddingLeft: `${paddingLeft}px`,
 								color: selected ? 'wheat' : 'inherit',
 								background: ((depth === 0 || displayed) && selected) ? selectedBg : 'transparent',
-								margin: (type === 'item' && selected) ? '-3px 0 -3px' : '',
+								margin: type === 'item' ? '-3px 0 -3px' : '',
 								targetedBg: `${Bg('Navigation' + (depth === 0 ? 'Mod' : 'Item') + '_targeted')} center center / cover no-repeat`,
-								cloneBg: selectedBg
+								cloneBg: `${Bg('NavigationItem_selected')} center center / cover no-repeat`
 						}
 
 						const expanderStyles = {
@@ -341,7 +361,8 @@ export default function Navigation() {
 						if (modules) childrenKeys.push(...modules.map(({ key }) => key))
 
 						const onAddElClick = e => {
-								console.log(el)
+								e.stopPropagation()
+								setCreation(el)
 						}
 
 						return (

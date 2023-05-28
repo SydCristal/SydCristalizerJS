@@ -1,12 +1,10 @@
 import styled from 'styled-components'
-//import { useEditionContext } from '../../contexts/EditionContext'
-//import { Header, Aside, Main } from './'
+import { CreationModal } from '../Modals/CreationModal'
 import Header from '../Header'
 import { Bg } from '../../Utils'
 import Navigation from '../Navigation'
 import Palette from '../Palette'
 import Editor from '../Editor'
-import { l } from './'
 
 const StlLayout = styled.section`
 		background: ${Bg('Layout')} center bottom / cover no-repeat;
@@ -38,11 +36,9 @@ const Content = styled.div`
 `
 
 export default function Layout() {
-		//const { edition } = useEditionContext()
-		l.languagr = 'ruRU'
-
 		return (
 				<StlLayout>
+						<CreationModal />
 						<Header />
 						<Content>
 								<Navigation />

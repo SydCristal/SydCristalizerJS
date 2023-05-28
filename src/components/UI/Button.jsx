@@ -19,7 +19,6 @@ const styles = css`
 
 const StlButton = styled.button`${() => styles}`
 const StlLabel = styled.label`${() => styles}`
-
 const StlText = styled(StlButton)`
 		width: 58px;
 		font-size: 16x;
