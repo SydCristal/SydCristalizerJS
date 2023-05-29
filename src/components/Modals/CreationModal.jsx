@@ -29,7 +29,7 @@ const Modal = styled(ReactModal)`
 
 const expander = css`;
   background: ${Bg('CreationModalSelectExpander')} center center / cover no-repeat;
-  top: 40px;
+  top: 42px;
   width: 25px;
   height: 25px;
   transition: transform 0.3s ease-in-out;
@@ -39,12 +39,12 @@ const expander = css`;
 
 const Header = styled.header`
   height: 105px;
-  margin-top: 5px;
+  margin-top: 3px;
   > div {
     height: 100%;
     > div {
       &:first-child {
-        padding: 25px 50px 30px;
+        padding: 25px 50px;
         height: 100%;
         width: 100%;
         text-align: center;
@@ -56,7 +56,7 @@ const Header = styled.header`
         };
         &::after {
           ${expander};
-          right: 13px;
+          right: 12px;
         };
       };
       &:last-child {
@@ -125,7 +125,7 @@ const Content = styled.section`
 const Footer = styled.footer`
   background: ${Bg('CreationModalFooter')} center center / cover no-repeat;
   height: 50px;
-  margin: 0px 10px 20px;
+  margin: 0px 10px 15px;
   padding: 10px 15px;
   display: flex;
   flex-direction: row;
@@ -138,6 +138,7 @@ const Footer = styled.footer`
     &:first-child {
       border-right: 2px solid rgb(55, 56, 71);
       background-color: #80000059;
+      cursor: pointer;
       &:hover {
         color: wheat;
         background-color: #800000a6;
@@ -150,6 +151,7 @@ const Footer = styled.footer`
       };
       &:not(:disabled) {
         background-color: rgba(106, 50, 92, 0.5);
+        cursor: pointer;
         &:hover {
           color: wheat;
           background-color: rgba(106, 50, 92, 0.75);
@@ -166,10 +168,7 @@ export function CreationModal() {
 		const { setSelection } = useSelectionContext()
 		const [newItemType, setNewItemType] = useState(null)
 		const [newItemKey, setNewItemKey] = useState('')
-
-		if (!creation) return <div />
-
-		const { path = '', namespace = '', modules = [], items = [], entries = [], type } = creation
+  const { path, modules = [], items = [], entries = [], type } = creation
 		const controls = [...(creation?.controls || []), ...(_.reduce(entries, (result, { controls }) => { return [...result, ...controls] }, []))]
 		const unavailableKeys = [...modules, ...items, ...controls].map(({ key }) => key)
 
@@ -218,37 +217,32 @@ export function CreationModal() {
 		const keyIsUnvailable = unavailableKeys.includes(newItemKey)
 		const groupName = `${newItemType}s`
 
-		const updateObj = obj => {
-				const newItem = { key: newItemKey, type: newItemType }
-				if (!obj[groupName]) {
-						obj[groupName] = [newItem]
-				} else {
-						obj[groupName].push(newItem)
-				}
-
-				return obj
-		}
-
 		label = keyIsUnvailable ? l.keyIsUnvailable : (label ? `${l.new} ${(label || newItemType).toLowerCase()}` : '')
 		const disabled = !newItemType || !newItemKey || keyIsUnvailable
 		const createNewItem = () => {
 				if (disabled) return
 				let updatedModScheme = _.cloneDeep(modScheme)
-				if (path) {
-						_.update(updatedModScheme, path, updateObj)
-				} else {
-						updatedModScheme = updateObj(modScheme)
-				}
+    _.update(updatedModScheme, path, obj => {
+      const newItem = { key: newItemKey, type: newItemType }
+      if (!obj[groupName]) {
+        obj[groupName] = [newItem]
+      } else {
+        obj[groupName].push(newItem)
+      }
 
+      return obj
+    })
+
+    const newSelection = {
+      key: newItemKey,
+      type: newItemType,
+      path: `${path}.${groupName}[${(creation[groupName]?.length || 1) - 1}]`
+    }
+
+    closeModal()
 				setModScheme(updatedModScheme)
-				setSelection({
-						key: newItemKey,
-						type: newItemType,
-						namespace: (namespace ? `${namespace}.` : '') + newItemKey,
-						path: (path ? `${path}.` : '') + groupName + ((creation[groupName]?.length || 1) - 1)
-				})
-				closeModal()
-		}
+    setSelection(newSelection)
+  }
 
 		return (
 				<Modal
@@ -266,13 +260,14 @@ export function CreationModal() {
 										options={options}
 										disabled={keyIsUnvailable} />
 						</Header>
-						{newItemType && <Content>
-								<TextInput
-										value={newItemKey}
-										setValue={setNewItemKey}
-										placeholder={l.enterNewItemKey}
-										onPressEnter={createNewItem}
-										regexp={KEY_REGEXP} />
+      {newItemType &&
+      <Content>
+						  <TextInput
+						  		value={newItemKey}
+						  		setValue={setNewItemKey}
+						  		placeholder={l.enterNewItemKey}
+						  		onPressEnter={createNewItem}
+						  		regexp={KEY_REGEXP} />
 						</Content>}
 						<Footer>
 								<button key='cancel' onClick={closeModal}>{l.cancel}</button>

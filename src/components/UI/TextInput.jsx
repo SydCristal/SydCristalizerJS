@@ -17,8 +17,8 @@ export function TextInput({ value, setValue, regexp, placeholder, disabled, onPr
 
   const onKeyDown = ({ key, target }) => {
     if (key === 'Enter' && onPressEnter) {
-      onPressEnter()
       target.blur()
+      onPressEnter()
     }
   }
 

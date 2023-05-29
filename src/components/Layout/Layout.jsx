@@ -1,5 +1,6 @@
 import styled from 'styled-components'
 import { CreationModal } from '../Modals/CreationModal'
+import { useCreationContext } from '../../contexts/CreationContext'
 import Header from '../Header'
 import { Bg } from '../../Utils'
 import Navigation from '../Navigation'
@@ -36,9 +37,11 @@ const Content = styled.div`
 `
 
 export default function Layout() {
+		const { creation } = useCreationContext()
 		return (
 				<StlLayout>
-						<CreationModal />
+						{creation &&
+						<CreationModal />}
 						<Header />
 						<Content>
 								<Navigation />

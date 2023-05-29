@@ -85,8 +85,20 @@ export default function Header() {
 
 				setModScheme({
 						key: modKey,
-						namespace: modKey,
-						type: 'mod'
+						mod: {
+								key: modKey,
+								type: 'mod'
+						},
+						menu: {
+								key: modKey,
+								type: 'menu'
+						}
+				})
+
+				setSelection({
+						path: 'mod',
+						type: 'mod',
+						key: modKey
 				})
 		}
 
