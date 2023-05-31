@@ -3,12 +3,13 @@ import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useLanguageContext } from '../../contexts/LanguageContext'
 import { useSelectionContext } from '../../contexts/SelectionContext'
 import { useCreationContext } from '../../contexts/CreationContext'
+import { CreationModal } from '../Modals/CreationModal'
 import { Accordion, AccordionBody, AccordionHeader, AccordionItem } from 'react-headless-accordion'
 import { Bg } from '../../Utils'
 import styled, { css } from 'styled-components'
 import { SectionHeading, Button } from '../UI'
 import _ from 'lodash'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const Aside = styled(Accordion)`
 `
@@ -162,11 +163,31 @@ export default function Navigation() {
 		const { modScheme, setModScheme } = useModSchemeContext()
 		const { language } = useLanguageContext()
 		const { selection, setSelection } = useSelectionContext()
-		const { setCreation } = useCreationContext()
+		const { creation, setCreation } = useCreationContext()
 		const [displayNames, setDisplayNames] = useState(JSON.parse(localStorage.getItem('displayNames')) || false)
 		const draggedSourceRef = useRef(null)
 		const draggedCloneRef = useRef(null)
 		const droppableTargetRef = useRef(null)
+		let currentSelection
+
+		useEffect(() => {
+				if (currentSelection === selection) {
+						return
+				}
+
+				currentSelection = selection
+
+				const selectionArr = selection.split('.')
+				let current = ''
+				for (let i = 0; i < selectionArr.length - 1; i++) {
+						if (!current) current = selectionArr[i]
+						else current += `.${selectionArr[i]}`
+						const header = document.getElementById(`${current}-header`)
+						if (header?.dataset?.expanded === 'false') {
+								header.querySelector('button').click()
+						}
+				}
+		}, [selection])
 
 		if (!modScheme?.key) return <aside />
 		l.setLanguage(language)
@@ -212,7 +233,7 @@ export default function Navigation() {
 						target = target.parentElement.previousElementSibling
 				}
 
-				const { dataset: { path: targetPath, childrenKeys }} = target
+				const { dataset: { path: targetPath, childrenKeys } } = target
 
 				if (targetPath === clonePath) return cleanClone()
 
@@ -222,12 +243,12 @@ export default function Navigation() {
 
 				if (childrenKeys && childrenKeys.split(',').includes(key)) {
 						const source = draggedSourceRef.current
-						const { dataset: { path: parentPath }} = source.parentElement.previousElementSibling
+						const { dataset: { path: parentPath } } = source.parentElement.previousElementSibling
 						if (targetPath === parentPath) return cleanClone()
 						return displayErrorTooltip('targetContainsKey')
 				}
 
-				document.querySelector('#navigation')?.querySelector('.targeted')?.classList.remove('targeted')
+				document.getElementById('navigation')?.querySelector('.targeted')?.classList.remove('targeted')
 				clone.classList.remove('error-tooltip')
 				target.classList.add('targeted')
 				droppableTargetRef.current = target
@@ -304,7 +325,7 @@ export default function Navigation() {
 						})
 
 						_.update(updatedModScheme, sourcePath.slice(0, -3), arr => arr.filter(({ key }) => key !== sourceKey))
-						if (selection?.path.startsWith(sourcePath)) setSelection(null)
+						setSelection(`${targetPath}.${sourceGroup}[${updatedObj[sourceGroup].length - 1}]`)
 						setModScheme(updatedModScheme)
 				}
 
@@ -314,15 +335,16 @@ export default function Navigation() {
 
 		const buildAccordionItem = (el, displayed, depth) => {
 				const { key, type, items, modules, path } = el
-				const onTitleClick = () => setSelection(el)
-				const selected = selection?.path === path
+				const onTitleClick = () => setSelection(path)
+				const selected = selection === path
+				const hasSelectedDescendant = !selected && selection?.startsWith(path)
 				const expandable = !!(modules?.length || items?.length) && type !== 'item'
-				const hasSelectedDescendant = expandable && !selected && selection?.path?.startsWith(path)
 
 				const buildAccordionHeader = expanded => {
 						const height = `${depth === 0 ? 35 : 30}px`
 						const paddingLeft = depth === 0 ? 25 : 10
 						const selectedBg = `${Bg('NavigationItem_selected')} center center / cover no-repeat`
+						const displayedName = displayNames ? el.localization?.Title[language] || key : key
 
 						const wrapperStyles = {
 								fontSize: `${(type === 'item' || depth > 3) ? 16 : (22 - depth * 2)}px`,
@@ -351,10 +373,9 @@ export default function Navigation() {
 								marginRight: `${(depth - 1) * 15 + 5}px`
 						}
 
-						const displayedName = displayNames ? el.localization?.Title[language] || key : key
 						const onExpanderClick = e => {
 								e.stopPropagation()
-								if (expanded && hasSelectedDescendant) setSelection(el)
+								if (expanded && hasSelectedDescendant) setSelection(path)
 						}
 
 						const childrenKeys = []
@@ -375,43 +396,44 @@ export default function Navigation() {
 										data-path={path}
 										data-navigation-item-type={type}
 										data-children-keys={childrenKeys.join(',')}
+										data-expanded={expanded ? 'true' : 'false'}
+										id={`${path}-header`}
 										className='navigation-item'
 										{...wrapperStyles}>
 										{depth !== 0 &&
-										<DragHandle
-												onMouseDown={onMouseDown}
-												{...dragHandleStyles} />}
+												<DragHandle
+														onMouseDown={onMouseDown}
+														{...dragHandleStyles} />}
 										{expandable &&
-										<Expander
-												onClick={onExpanderClick}
-												{...expanderStyles} />}
+												<Expander
+														onClick={onExpanderClick}
+														{...expanderStyles} />}
 										<Title onClick={onTitleClick}>
 												{type === 'item' ?
-												<span>{displayedName}</span> :
-												<h3>{displayedName}</h3>}
+														<span>{displayedName}</span> :
+														<h3>{displayedName}</h3>}
 										</Title>
 										{type !== 'item' &&
-										<AddElIcon
-												onClick={onAddElClick}
-												{...addElIconStyles} />}
+												<AddElIcon
+														onClick={onAddElClick}
+														{...addElIconStyles} />}
 								</HeaderWrapper>
 						)
 				}
 
 				return (
 						<AccordionItem
-								key={key}
-								isActive={hasSelectedDescendant}>
+								key={key}>
 								{({ open }) => (<>
 										{buildAccordionHeader(open)}
 										{type !== 'item' &&
-										<Content displayed={open}>
-												{['modules', 'items'].map(group => {
-														return el[group]?.map((subEl, index) => {
-																return buildAccordionItem({ ...subEl, path: `${path}.${group}[${index}]` }, displayed && open, depth + 1)
-														})
-												})}
-										</Content>}
+												<Content displayed={open}>
+														{['modules', 'items'].map(group => {
+																return el[group]?.map((subEl, index) => {
+																		return buildAccordionItem({ ...subEl, path: `${path}.${group}[${index}]` }, displayed && open, depth + 1)
+																})
+														})}
+												</Content>}
 								</>)}
 						</AccordionItem>
 				)
@@ -433,7 +455,9 @@ export default function Navigation() {
 		const { mod, menu } = modScheme
 
 		return (
-				<Aside as='aside' id='navigation'>
+				<Aside as='aside' id='navigation' alwaysOpen={true}>
+						{creation &&
+								<CreationModal />}
 						<SectionHeading>{l.navigation}</SectionHeading>
 						<Button btn='LongSwitch' onClick={onDisplayModeSwitchClick} styles={switchStyles}>
 								{displayNames ? l.displayKeys : l.displayNames}

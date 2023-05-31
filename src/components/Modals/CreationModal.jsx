@@ -233,21 +233,15 @@ export function CreationModal() {
       return obj
     })
 
-    const newSelection = {
-      key: newItemKey,
-      type: newItemType,
-      path: `${path}.${groupName}[${(creation[groupName]?.length || 1) - 1}]`
-    }
-
     closeModal()
 				setModScheme(updatedModScheme)
-    setSelection(newSelection)
+    setSelection(`${path}.${groupName}[${creation[groupName]?.length || 0}]`)
   }
 
 		return (
 				<Modal
 						appElement={document.getElementById('root')}
-						isOpen={true}
+      isOpen={!!creation}
 						onRequestClose={closeModal}
 						style={{ overlay: { backgroundColor: 'rgba(15, 10, 20, 0.65)', zIndex: 1 } }}>
 						<Header optionsCount={options?.length || 0}>
@@ -264,7 +258,8 @@ export function CreationModal() {
       <Content>
 						  <TextInput
 						  		value={newItemKey}
-						  		setValue={setNewItemKey}
+          setValue={setNewItemKey}
+          capitalize={true}
 						  		placeholder={l.enterNewItemKey}
 						  		onPressEnter={createNewItem}
 						  		regexp={KEY_REGEXP} />

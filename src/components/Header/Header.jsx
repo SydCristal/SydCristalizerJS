@@ -5,7 +5,7 @@ import { useSelectionContext } from '../../contexts/SelectionContext'
 import { LanguageSwitch } from './LanguageSwitch'
 import styled from 'styled-components'
 import { SchemeDownloader, ProjectDownloader, SchemeUploader } from './'
-import { Button, ButtonGroup } from '../UI'
+import { Button, ButtonGroup, TextInput } from '../UI'
 import { Bg, KEY_REGEXP } from '../../Utils'
 import { l } from './Localization'
 
@@ -46,18 +46,16 @@ const Heading = styled.h1`
 }
 `
 
-const Input = styled.input`
-		border: none;
-		background: ${Bg('ModKeyInput')} center center / contain no-repeat;
-		height: 50px;
-		width: 325px;
-		font-size: 22px;
-		font-weight: bold;
-		padding: 0px 15px;
-		text-align: center;
-		&:focus-visible {
-				outline: none;
-  }
+const KeyInputWrapper = styled.div`
+		input {
+				background: ${Bg('ModKeyInput')} center center / contain no-repeat;
+				height: 50px;
+				width: 325px;
+				font-size: 22px;
+				font-weight: bold;
+				padding: 0px 15px;
+				text-align: center;
+		};
 `
 
 export default function Header() {
@@ -70,17 +68,11 @@ export default function Header() {
 
 		const onClearButtonClick = () => {
 				setModScheme(null)
-				setSelection(null)
+				setSelection('')
 				setModKey('')
 		}
 
-		const onModKeyChange = value => {
-				if (!KEY_REGEXP.test(value) && value !== '') return
-
-				setModKey(value)
-		}
-
-		const onEnterModKey = () => {
+		const onSetModKey = () => {
 				if (modKey === '') return
 
 				setModScheme({
@@ -95,33 +87,24 @@ export default function Header() {
 						}
 				})
 
-				setSelection({
-						path: 'mod',
-						type: 'mod',
-						key: modKey
-				})
-		}
-
-		const onModKeyInput = ({ key, target }) => {
-				if (key === 'Enter') {
-						onEnterModKey()
-						target.blur()
-				}
+				setSelection('mod')
 		}
 
 		return (
 				<StlHeader>
 						<div>
 								<Heading>SydCristalizer</Heading>
-						</div><div>
+						</div><KeyInputWrapper>
 								{!modScheme?.key &&
-								<Input
+								<TextInput
 										placeholder={l.modKeyPlaceholder}
 										value={modKey}
-										onChange={({ target: { value } }) => onModKeyChange(value)}
-										onBlur={onEnterModKey}
-										onKeyDown={onModKeyInput} />}
-						</div><div>
+										capitalize={true}
+										setValue={setModKey}
+										regexp={KEY_REGEXP}
+										onBlur={onSetModKey}
+										onPressEnter={onSetModKey} />}
+						</KeyInputWrapper><div>
 								<ButtonGroup>
 										<LanguageSwitch />
 										<SchemeDownloader disabled={disabled} />

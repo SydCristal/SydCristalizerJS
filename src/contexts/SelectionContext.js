@@ -3,12 +3,12 @@ import { createContext, useContext, useState } from 'react'
 const SelectionContext = createContext(null)
 
 const SelectionProvider = ({ children }) => {
-		const [selection, setSelection] = useState(JSON.parse(localStorage.getItem('selection')) || null)
+		const [selection, setSelection] = useState(localStorage.getItem('selection') || '')
 
 		const value = {
 				selection,
 				setSelection: selection => {
-						localStorage.setItem('selection', JSON.stringify(selection))
+						localStorage.setItem('selection', selection)
 						setSelection(selection)
 				}
 		}
