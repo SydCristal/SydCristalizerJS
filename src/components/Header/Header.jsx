@@ -78,12 +78,14 @@ export default function Header() {
 				setModScheme({
 						key: modKey,
 						mod: {
-								key: modKey,
-								type: 'mod'
+								key: 'mod',
+								type: 'mod',
+								path: 'mod'
 						},
 						menu: {
-								key: modKey,
-								type: 'menu'
+								key: 'menu',
+								type: 'menu',
+								path: 'menu'	
 						}
 				})
 

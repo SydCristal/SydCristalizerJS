@@ -2,63 +2,22 @@
 import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useLanguageContext } from '../../contexts/LanguageContext'
 import { useSelectionContext } from '../../contexts/SelectionContext'
-import { useCreationContext } from '../../contexts/CreationContext'
 import { CreationModal } from '../Modals/CreationModal'
 import { Accordion, AccordionBody, AccordionHeader, AccordionItem } from 'react-headless-accordion'
-import { Bg } from '../../Utils'
+import { Bg, getIndexFromPath } from '../../Utils'
 import styled, { css } from 'styled-components'
 import { SectionHeading, Button } from '../UI'
 import _ from 'lodash'
 import { useState, useRef, useEffect } from 'react'
+import { getGroupPath } from '../../Utils/Functions'
 
 const Aside = styled(Accordion)`
 `
 
 const HeaderWrapper = styled.div`
-		${({ cloneBg, targetedBg, color, ...styles }) => ({ ...styles })};
-		padding-right: 10px;
-		display: flex;
-		flex-direction: row;
-		align-items: center;
-		position: relative;
-		cursor: pointer;
+		${({ cloneBg, targetedBg, ...styles }) => ({ ...styles })};
 		border: 2px solid transparent;
-		* {
-				margin: 0;
-				color: ${({ color }) => color};
-				font-size: ${({ fontSize }) => fontSize};
-				${Aside}.dragging & {
-						color: inherit;
-				};
-		};
-		${Aside}.dragging & {
-				&.dragged-source > * {
-						opacity: 0;
-				};
-				background: none;
-				&.targeted {
-					background-color: rgba(82, 0, 137, 0.2);
-					border: 2px solid #45204e;
-					&::before {
-						content: '';
-						background: ${Bg('DropTargetDecoration_left')} left center / contain no-repeat;
-						height: 100%;
-						width: 20px;
-						position: absolute;
-						left: 0;
-						top: 0;
-					};
-					&::after {
-						content: '';
-						background: ${Bg('DropTargetDecoration_right')} right center / contain no-repeat;
-						height: 100%;
-						width: 20px;
-						position: absolute;
-						right: 0;
-						top: 0;
-					};
-				};
-		};
+		position: relative;
 		&.dragged-clone {
 			background: ${({ cloneBg }) => cloneBg};
 			height: fit-content;
@@ -95,6 +54,60 @@ const HeaderWrapper = styled.div`
 						}
 				};
 			}
+		};
+		${Aside}.dragging & {
+				&.dragged-source > * {
+						opacity: 0;
+				};
+				&.dragged-clone {
+						position: absolute;
+						> * {
+								opacity: 1;
+						};
+				};
+				background: none;
+				&.targeted {
+					background-color: rgba(82, 0, 137, 0.2);
+					border: 2px solid #45204e;
+					&::before {
+						content: '';
+						background: ${Bg('DropTargetDecoration_left')} left center / contain no-repeat;
+						height: 100%;
+						width: 20px;
+						position: absolute;
+						left: 0;
+						top: 0;
+					};
+					&::after {
+						content: '';
+						background: ${Bg('DropTargetDecoration_right')} right center / contain no-repeat;
+						height: 100%;
+						width: 20px;
+						position: absolute;
+						right: 0;
+						top: 0;
+					};
+				};
+		};
+`
+
+const HeaderContent = styled.div`
+		${({ cloneBg, color, ...styles }) => ({ ...styles })};
+		padding-right: 10px;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		position: relative;
+		cursor: pointer;
+		border: 2px solid transparent;
+		opacity: 1;
+		* {
+				margin: 0;
+				color: ${({ color }) => color};
+				font-size: ${({ fontSize }) => fontSize};
+				${Aside}.dragging & {
+						color: inherit;
+				};
 		};
 		&:hover {
 				> * {
@@ -163,12 +176,18 @@ export default function Navigation() {
 		const { modScheme, setModScheme } = useModSchemeContext()
 		const { language } = useLanguageContext()
 		const { selection, setSelection } = useSelectionContext()
-		const { creation, setCreation } = useCreationContext()
+		const [addELProps, setAddELProps] = useState(null)
 		const [displayNames, setDisplayNames] = useState(JSON.parse(localStorage.getItem('displayNames')) || false)
 		const draggedSourceRef = useRef(null)
 		const draggedCloneRef = useRef(null)
 		const droppableTargetRef = useRef(null)
 		let currentSelection
+		let transformedElements = []
+
+		const cleanTransformation = () => {
+				transformedElements.forEach(el => { el.style.transform = `` })
+				transformedElements = []
+		}
 
 		useEffect(() => {
 				if (currentSelection === selection) {
@@ -190,12 +209,15 @@ export default function Navigation() {
 		}, [selection])
 
 		if (!modScheme?.key) return <aside />
+
 		l.setLanguage(language)
 
 		const removeTarget = () => {
 				document.querySelector('#navigation')?.querySelector('.targeted')?.classList.remove('targeted')
 				droppableTargetRef.current = null
 		}
+
+		let prevTarget
 
 		const onMouseMove = e => {
 				const { clientX, clientY } = e
@@ -208,48 +230,95 @@ export default function Navigation() {
 						return
 				}
 
-				const cleanClone = () => {
-						clone.classList.remove('error-tooltip')
-						removeTarget()
-						source.classList.add('targeted')
-				}
-
 				const displayErrorTooltip = msg => {
 						clone.classList.add('error-tooltip')
 						clone.querySelector('.error-tooltip-content').querySelector('span').textContent = l[msg]
 						removeTarget()
 				}
 
-				const { key, path: clonePath } = clone.dataset
+				const { key, path: sourcePath, itemType: sourceType } = source.dataset
+				let sourceIndex = getIndexFromPath(sourcePath) * 2
+				const isMenuEntity = ['section', 'control'].includes(sourceType)
 				clone.style.transform = `translate(${clientX}px, ${clientY}px)`
 
-				if (!e.target?.tagName) return cleanClone()
+				const clearDnD = () => {
+						clone.classList.remove('error-tooltip')
+						removeTarget()
+						source.classList.add('targeted')
+						cleanTransformation()
+				}
+
+				if (!e.target?.tagName || !(source.closest('section')?.id === e.target.closest('section')?.id)) return clearDnD()
 
 				let target = e.target.classList?.contains('navigation-item') ? e.target : e.target.closest('.navigation-item')
 
-				if (!target) return cleanClone()
+				if (!target) {
+						if (!prevTarget) return clearDnD()
+						target = prevTarget
+				}
 
-				if (target.dataset.navigationItemType === 'item') {
+				if (target.dataset.itemType === 'configurator' || (target.dataset.itemType === 'control' && sourceType !== 'control')) {
 						target = target.parentElement.previousElementSibling
 				}
 
-				const { dataset: { path: targetPath, childrenKeys } } = target
+				const { dataset: { path: targetPath, childrenKeys, itemType: targetType } } = target
 
-				if (targetPath === clonePath) return cleanClone()
+				if (prevTarget !== target) {
+						if (prevTarget) prevTarget.firstChild.style.transform = `translate(0, 0)`
+						prevTarget = target
+				}
 
-				if (targetPath.startsWith(clonePath)) {
+				if (isMenuEntity) {
+						if (getGroupPath(targetPath) === getGroupPath(sourcePath)) {
+								const parent = target.parentElement
+								let targetIndex = 2 * getIndexFromPath(targetPath)
+								const sourceHeight = source.offsetHeight
+
+								if (targetType === 'section') {
+										const controlsCount = modScheme.menu.controls?.length
+										targetIndex += 2 * controlsCount
+										sourceIndex += 2 * controlsCount
+								}
+
+								for (let i = 0; i < parent.childNodes.length; i++) {
+										const targetWrapper = parent.childNodes[i]
+										const child = targetWrapper.dataset?.itemType ? targetWrapper.firstChild : targetWrapper
+										const marginFix = targetType === 'control'  ? 6 : 0
+										if (!child) continue
+										let shift = sourceHeight - marginFix
+										if (targetIndex <= i && i < sourceIndex) {
+												child.style.transform = `translate(0, ${shift}px)`
+												transformedElements.push(child)
+										} else if (sourceIndex < i && i <= targetIndex + 1) {
+												let contentHeight = 0
+												if (i % 2 === 0) {
+														contentHeight = parent.childNodes[i + 1].offsetHeight
+														targetWrapper.style.transform = `translate(0, ${contentHeight}px)`
+														transformedElements.push(targetWrapper)
+												}
+												child.style.transform = `translate(0, ${-contentHeight - shift}px)`
+												transformedElements.push(child)
+										} else {
+												child.style.transform = `translate(0, 0)`
+										}
+								}
+						}
+				}
+
+				if (targetPath === sourcePath) return clearDnD()
+
+				if (targetPath.startsWith(sourcePath)) {
 						return displayErrorTooltip('recursionIsNotAllowed')
 				}
 
 				if (childrenKeys && childrenKeys.split(',').includes(key)) {
 						const source = draggedSourceRef.current
 						const { dataset: { path: parentPath } } = source.parentElement.previousElementSibling
-						if (targetPath === parentPath) return cleanClone()
+						if (targetPath === parentPath) return clearDnD()
 						return displayErrorTooltip('targetContainsKey')
 				}
 
 				document.getElementById('navigation')?.querySelector('.targeted')?.classList.remove('targeted')
-				clone.classList.remove('error-tooltip')
 				target.classList.add('targeted')
 				droppableTargetRef.current = target
 		}
@@ -262,6 +331,7 @@ export default function Navigation() {
 
 				if (source) {
 						source.closest('aside').classList.add('dragging')
+						if (source?.dataset?.itemType === 'section') source.nextSibling.style.display = 'none'
 						const { clientWidth, clientHeight } = source
 						const { left, top } = source.getBoundingClientRect()
 						const clone = source.cloneNode(true)
@@ -287,10 +357,12 @@ export default function Navigation() {
 		}
 
 		const onMouseUp = e => {
+				cleanTransformation()
 				let source = draggedSourceRef.current
 				if (source) {
 						source.closest('aside').classList.remove('dragging')
 						source.classList.remove('dragged-source')
+						source.nextSibling.style.display = 'block'
 						draggedSourceRef.current = null
 				}
 
@@ -306,26 +378,45 @@ export default function Navigation() {
 				}
 
 				if (source && target) {
-						const { dataset: { key: sourceKey, path: sourcePath, navigationItemType: sourceType } } = source
-						const { dataset: { path: targetPath } } = target
+						const { dataset: { key: sourceKey, path: sourcePath, itemType: sourceType } } = source
+						const { dataset: { path: targetPath, itemType: targetType } } = target
+						const isMenuEntity = ['section', 'control'].includes(sourceType)
 						const updatedModScheme = _.cloneDeep(modScheme)
 						const sourceObj = _.get(updatedModScheme, sourcePath)
 						const sourceGroup = `${sourceType}s`
-						let updatedObj
+						if (isMenuEntity) {
+								const targetArrPath = sourceType === targetType ? getGroupPath(targetPath) : `${targetPath}.${sourceGroup}`
+								let targetArr = _.get(modScheme, targetArrPath) || []
+								const targetIndex = sourceType === targetType ? getIndexFromPath(targetPath) : targetArr.length
 
-						_.update(updatedModScheme, targetPath, targetObj => {
-								updatedObj = _.cloneDeep(targetObj)
-								if (updatedObj[sourceGroup]) {
-										updatedObj[sourceGroup].push(sourceObj)
+								const sourceArrPath = getGroupPath(sourcePath)
+								if (targetArrPath === sourceArrPath) {
+										targetArr = targetArr.filter(({ key }) => key !== sourceKey)
 								} else {
-										updatedObj[sourceGroup] = [sourceObj]
+										const sourceArr = _.get(modScheme, sourceArrPath).filter(({ key }) => key !== sourceKey)
+										_.update(updatedModScheme, sourceArrPath, () => sourceArr)
 								}
 
-								return updatedObj
-						})
+								targetArr.splice(targetIndex, 0, sourceObj)
+								_.update(updatedModScheme, targetArrPath, () => targetArr)
+								setSelection(`${targetArrPath}[${targetIndex}]`)
+						} else {
+								let updatedObj
 
-						_.update(updatedModScheme, sourcePath.slice(0, -3), arr => arr.filter(({ key }) => key !== sourceKey))
-						setSelection(`${targetPath}.${sourceGroup}[${updatedObj[sourceGroup].length - 1}]`)
+								_.update(updatedModScheme, targetPath, targetObj => {
+										updatedObj = _.cloneDeep(targetObj)
+										if (updatedObj[sourceGroup]) {
+												updatedObj[sourceGroup].push(sourceObj)
+										} else {
+												updatedObj[sourceGroup] = [sourceObj]
+										}
+
+										return updatedObj
+								})
+
+								_.update(updatedModScheme, getGroupPath(sourcePath), arr => arr.filter(({ key }) => key !== sourceKey))
+								setSelection(`${targetPath}.${sourceGroup}[${updatedObj[sourceGroup].length - 1}]`)
+						}
 						setModScheme(updatedModScheme)
 				}
 
@@ -333,30 +424,35 @@ export default function Navigation() {
 				window.removeEventListener('mouseup', onMouseUp)
 		}
 
-		const buildAccordionItem = (el, displayed, depth) => {
-				const { key, type, items, modules, path } = el
+		const buildAccordionItem = (el, displayed = true, depth = 0) => {
+				const { key, type, configurators, modules, sections, controls, path, namespace = modScheme.key } = el
 				const onTitleClick = () => setSelection(path)
 				const selected = selection === path
 				const hasSelectedDescendant = !selected && selection?.startsWith(path)
-				const expandable = !!(modules?.length || items?.length) && type !== 'item'
+				const expandable = !!(modules?.length || configurators?.length || sections?.length || controls?.length) && type !== 'configurator'
 
 				const buildAccordionHeader = expanded => {
 						const height = `${depth === 0 ? 35 : 30}px`
 						const paddingLeft = depth === 0 ? 25 : 10
 						const selectedBg = `${Bg('NavigationItem_selected')} center center / cover no-repeat`
-						const displayedName = displayNames ? el.localization?.Title[language] || key : key
+						const displayedName = (displayNames && el.localization?.Title[language]) || (type === 'mod' && modScheme.key) || (key === 'menu' && 'Mod Menu') || key
+						const isLeaf = type === 'control' || type === 'configurator'
 
 						const wrapperStyles = {
-								fontSize: `${(type === 'item' || depth > 3) ? 16 : (22 - depth * 2)}px`,
-								fontWeight: type === 'item' ? 'normal' : 'bold',
+								background: (displayed && selected) ? selectedBg : 'transparent',
+								targetedBg: `${Bg('Navigation' + (depth === 0 ? 'Mod' : 'Item') + '_targeted')} center center / cover no-repeat`,
+								margin: isLeaf ? '-3px 0 -3px' : '',
+								cloneBg: `${Bg('NavigationItem_selected')} center center / cover no-repeat`
+						}
+
+						const contentStyles = {
+								fontSize: `${(isLeaf || depth > 3) ? 16 : (22 - depth * 2)}px`,
+								fontWeight: isLeaf ? 'normal' : 'bold',
 								height,
 								lineHeight: height,
 								paddingLeft: `${paddingLeft}px`,
 								color: selected ? 'wheat' : 'inherit',
-								background: (displayed && selected) ? selectedBg : 'transparent',
-								margin: type === 'item' ? '-3px 0 -3px' : '',
-								targetedBg: `${Bg('Navigation' + (depth === 0 ? 'Mod' : 'Item') + '_targeted')} center center / cover no-repeat`,
-								cloneBg: `${Bg('NavigationItem_selected')} center center / cover no-repeat`
+								background: 'transparent'
 						}
 
 						const expanderStyles = {
@@ -375,48 +471,54 @@ export default function Navigation() {
 
 						const onExpanderClick = e => {
 								e.stopPropagation()
+								e.target.style.transform = `rotate(${!expanded ? -180 : 0}deg), ${e.target.style.transform}`
 								if (expanded && hasSelectedDescendant) setSelection(path)
 						}
 
 						const childrenKeys = []
 
-						if (items) childrenKeys.push(...items.map(({ key }) => key))
+						if (configurators) childrenKeys.push(...configurators.map(({ key }) => key))
 						if (modules) childrenKeys.push(...modules.map(({ key }) => key))
+						if (sections) childrenKeys.push(...sections.map(({ key }) => key))
+						if (controls) childrenKeys.push(...controls.map(({ key }) => key))
 
 						const onAddElClick = e => {
 								e.preventDefault()
 								e.stopPropagation()
 								e.target.blur()
-								setCreation(el)
+								setAddELProps(el)
 						}
 
 						return (
 								<HeaderWrapper
 										data-key={key}
 										data-path={path}
-										data-navigation-item-type={type}
+										data-item-type={type}
 										data-children-keys={childrenKeys.join(',')}
 										data-expanded={expanded ? 'true' : 'false'}
 										id={`${path}-header`}
 										className='navigation-item'
 										{...wrapperStyles}>
-										{depth !== 0 &&
-												<DragHandle
-														onMouseDown={onMouseDown}
-														{...dragHandleStyles} />}
-										{expandable &&
-												<Expander
-														onClick={onExpanderClick}
-														{...expanderStyles} />}
-										<Title onClick={onTitleClick}>
-												{type === 'item' ?
-														<span>{displayedName}</span> :
-														<h3>{displayedName}</h3>}
-										</Title>
-										{type !== 'item' &&
-												<AddElIcon
-														onClick={onAddElClick}
-														{...addElIconStyles} />}
+										<HeaderContent {...contentStyles}>
+												{depth !== 0 &&
+														<DragHandle
+																onMouseDown={onMouseDown}
+																{...dragHandleStyles} />}
+												{expandable &&
+														<Expander
+																onClick={onExpanderClick}
+																className={`expander-${expanded ? 'up' : 'down'}`}
+																{...expanderStyles} />}
+												<Title onClick={onTitleClick}>
+														{isLeaf ?
+																<span>{displayedName}</span> :
+																<h3>{displayedName}</h3>}
+												</Title>
+												{!isLeaf &&
+														<AddElIcon
+																onClick={onAddElClick}
+																		{...addElIconStyles} />}
+										</HeaderContent>
 								</HeaderWrapper>
 						)
 				}
@@ -426,14 +528,19 @@ export default function Navigation() {
 								key={key}>
 								{({ open }) => (<>
 										{buildAccordionHeader(open)}
-										{type !== 'item' &&
-												<Content displayed={open}>
-														{['modules', 'items'].map(group => {
-																return el[group]?.map((subEl, index) => {
-																		return buildAccordionItem({ ...subEl, path: `${path}.${group}[${index}]` }, displayed && open, depth + 1)
-																})
-														})}
-												</Content>}
+										<Content displayed={open}>
+												{['modules', 'configurators', 'controls', 'sections'].map(group => {
+														return el[group]?.map((subEl, index) => {
+																subEl = {
+																		...subEl,
+																		path: `${path}.${group}[${index}]`,
+																		namespace: `${namespace}.${subEl.key}`
+																}
+																return buildAccordionItem(subEl, displayed && open, depth + 1)
+														})
+												})}
+												<div style={{ height: '3px' }}></div>
+										</Content>
 								</>)}
 						</AccordionItem>
 				)
@@ -456,13 +563,19 @@ export default function Navigation() {
 
 		return (
 				<Aside as='aside' id='navigation' alwaysOpen={true}>
-						{creation &&
-								<CreationModal />}
+						{addELProps?.path &&
+								<CreationModal
+										onClose={() => setAddELProps(null)}
+										{...addELProps} />}
 						<SectionHeading>{l.navigation}</SectionHeading>
 						<Button btn='LongSwitch' onClick={onDisplayModeSwitchClick} styles={switchStyles}>
 								{displayNames ? l.displayKeys : l.displayNames}
 						</Button>
-						{buildAccordionItem({ ...mod, path: 'mod' }, true, 0)}
+						<section id='mod-structure-navigation-section'>
+								{buildAccordionItem(mod)}
+						</section><section id='mod-menu-navigation-section'>
+								{buildAccordionItem(menu)}
+						</section>
 				</Aside>
 		)
 }

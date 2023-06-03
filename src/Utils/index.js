@@ -1,2 +1,2 @@
-export { Btn, Bg } from './Functions'
+export { Btn, Bg, getIndexFromPath, getGroupPath } from './Functions'
 export { KEY_REGEXP } from './Constants'

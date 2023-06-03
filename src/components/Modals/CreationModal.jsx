@@ -1,7 +1,6 @@
 import ReactModal from 'react-modal'
 import styled, { css } from 'styled-components'
 import { useLanguageContext } from '../../contexts/LanguageContext'
-import { useCreationContext } from '../../contexts/CreationContext'
 import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useSelectionContext } from '../../contexts/SelectionContext'
 import { l } from './'
@@ -161,16 +160,15 @@ const Footer = styled.footer`
   };
 `
 
-export function CreationModal() {
+export function CreationModal(props) {
 		const { language } = useLanguageContext()
-		const { creation, setCreation } = useCreationContext()
 		const { modScheme, setModScheme } = useModSchemeContext()
 		const { setSelection } = useSelectionContext()
 		const [newItemType, setNewItemType] = useState(null)
-		const [newItemKey, setNewItemKey] = useState('')
-  const { path, modules = [], items = [], entries = [], type } = creation
-		const controls = [...(creation?.controls || []), ...(_.reduce(entries, (result, { controls }) => { return [...result, ...controls] }, []))]
-		const unavailableKeys = [...modules, ...items, ...controls].map(({ key }) => key)
+  const [newItemKey, setNewItemKey] = useState('')
+  const { path, modules = [], configurators = [], controls = [], sections = [], type, onClose } = props
+  const unavailableKeys = [...modules, ...configurators, ...controls, ...sections].map(({ key }) => key)
+  if (!props?.path) return
 
 		l.setLanguage(language)
 		let options = []
@@ -185,28 +183,28 @@ export function CreationModal() {
 								value: 'module',
 								label: moduleLabel
 						}, {
-								value: 'item',
-								label: l.item
+								value: 'configurator',
+        label: l.configurator
 						}]
 						break
 				case 'menu':
-						options = [{
-								value: 'entity',
-								label: l.subHeader
-						}]
-				case 'entity':
+      options.push({
+								value: 'section',
+        label: l.section
+						})
+    case 'section':
 						options.push({
-								value: 'switch',
-								label: l.switch
+								value: 'control',
+								label: l.control
 						})
 						break
 				default: break
-		}
+  }
 
 		const closeModal = () => {
 				setNewItemType(null)
 				setNewItemKey('')
-				setCreation(null)
+				onClose && onClose()
 		}
 
 		const onDropdownClose = target => {
@@ -235,13 +233,13 @@ export function CreationModal() {
 
     closeModal()
 				setModScheme(updatedModScheme)
-    setSelection(`${path}.${groupName}[${creation[groupName]?.length || 0}]`)
+    setSelection(`${path}.${groupName}[${props[groupName]?.length || 0}]`)
   }
 
 		return (
 				<Modal
 						appElement={document.getElementById('root')}
-      isOpen={!!creation}
+      isOpen={!!props.path}
 						onRequestClose={closeModal}
 						style={{ overlay: { backgroundColor: 'rgba(15, 10, 20, 0.65)', zIndex: 1 } }}>
 						<Header optionsCount={options?.length || 0}>
