@@ -7,9 +7,48 @@ const ModSchemeProvider = ({ children }) => {
 
 		const value = {
 				modScheme,
-				setModScheme: modScheme => {
-						localStorage.setItem('modScheme', JSON.stringify(modScheme))
-						setModScheme(modScheme)
+				setModScheme: newModScheme => {
+						let structureIndex = 0
+						let menuIndex = 0
+
+						const setIndexes = (isMod, item) => {
+								const { controls, subSections, modules, configurators, ...rest } = item
+								const result = {
+										...rest,
+										index: isMod ? structureIndex : menuIndex
+								}
+
+								if (isMod) {
+										structureIndex += 1
+								} else {
+										menuIndex += 1
+								}
+
+								['controls', 'subSections', 'modules', 'configurators'].forEach(groupName => {
+										if (item[groupName]?.length) {
+												result[groupName] = item[groupName].map(item => setIndexes(isMod, item))
+										}
+								})
+
+								return result
+						}
+
+						let result = null
+
+						if (newModScheme) {
+								const { menu, mod, ...restProps } = newModScheme
+								const indexedMod = setIndexes(true, mod)
+								const indexedMenu = setIndexes(false, menu)
+
+								result = {
+										...restProps,
+										mod: indexedMod,
+										menu: indexedMenu
+								}
+						}
+
+						localStorage.setItem('modScheme', JSON.stringify(result))
+						setModScheme(result)
 				}
 		}
 

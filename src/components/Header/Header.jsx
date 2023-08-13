@@ -7,7 +7,7 @@ import styled from 'styled-components'
 import { SchemeDownloader, ProjectDownloader, SchemeUploader } from './'
 import { Button, ButtonGroup, TextInput } from '../UI'
 import { Bg, KEY_REGEXP } from '../../Utils'
-import { l } from './Localization'
+import { l } from './'
 
 const StlHeader = styled.header`
 		background: ${Bg('Header')} center bottom / cover no-repeat;
@@ -80,12 +80,14 @@ export default function Header() {
 						mod: {
 								key: 'mod',
 								type: 'mod',
-								path: 'mod'
+								path: 'mod',
+								position: 'root'
 						},
 						menu: {
 								key: 'menu',
 								type: 'menu',
-								path: 'menu'	
+								path: 'menu',
+								position: 'root'
 						}
 				})
 

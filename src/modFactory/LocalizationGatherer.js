@@ -28,15 +28,3 @@ module.exports = {
 				}
 		}
 }
-
-//<Target Name = "PreBuild" BeforeTargets = "PreBuildEvent">
-//		<Exec Command="Powershell.exe node -e 'require(`./ModFactory/LocalizationGatherer.js`).gatherLocalizations(`.`, `$(AssemblyName)`)'" />
-//</Target >
-//
-//<ItemGroup>
-//		<None Remove=".\Localization.json" />
-//</ItemGroup>
-//
-//<ItemGroup>
-//		<EmbeddedResource Include=".\Localization.json" />
-//</ItemGroup>

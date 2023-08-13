@@ -165,10 +165,10 @@ export function CreationModal(props) {
 		const { modScheme, setModScheme } = useModSchemeContext()
 		const { setSelection } = useSelectionContext()
 		const [newItemType, setNewItemType] = useState(null)
-  const [newItemKey, setNewItemKey] = useState('')
-  const { path, modules = [], configurators = [], controls = [], sections = [], type, onClose } = props
-  const unavailableKeys = [...modules, ...configurators, ...controls, ...sections].map(({ key }) => key)
-  if (!props?.path) return
+		const [newItemKey, setNewItemKey] = useState('')
+		const { path, modules = [], configurators = [], controls = [], subSections = [], type, onClose } = props
+		const unavailableKeys = [...modules, ...configurators, ...controls, ...subSections].map(({ key }) => key)
+		if (!props?.path) return
 
 		l.setLanguage(language)
 		let options = []
@@ -184,22 +184,22 @@ export function CreationModal(props) {
 								label: moduleLabel
 						}, {
 								value: 'configurator',
-        label: l.configurator
+								label: l.configurator
 						}]
 						break
 				case 'menu':
-      options.push({
-								value: 'section',
-        label: l.section
+						options.push({
+								value: 'subSection',
+								label: l.subSection
 						})
-    case 'section':
+				case 'subSection':
 						options.push({
 								value: 'control',
 								label: l.control
 						})
 						break
 				default: break
-  }
+		}
 
 		const closeModal = () => {
 				setNewItemType(null)
@@ -220,26 +220,26 @@ export function CreationModal(props) {
 		const createNewItem = () => {
 				if (disabled) return
 				let updatedModScheme = _.cloneDeep(modScheme)
-    _.update(updatedModScheme, path, obj => {
-      const newItem = { key: newItemKey, type: newItemType }
-      if (!obj[groupName]) {
-        obj[groupName] = [newItem]
-      } else {
-        obj[groupName].push(newItem)
-      }
+				_.update(updatedModScheme, path, obj => {
+						const newItem = { key: newItemKey, type: newItemType }
+						if (!obj[groupName]) {
+								obj[groupName] = [newItem]
+						} else {
+								obj[groupName].push(newItem)
+						}
 
-      return obj
-    })
+						return obj
+				})
 
-    closeModal()
+				closeModal()
 				setModScheme(updatedModScheme)
-    setSelection(`${path}.${groupName}[${props[groupName]?.length || 0}]`)
-  }
+				setSelection(`${path}.${groupName}[${props[groupName]?.length || 0}]`)
+		}
 
 		return (
 				<Modal
 						appElement={document.getElementById('root')}
-      isOpen={!!props.path}
+						isOpen={!!props.path}
 						onRequestClose={closeModal}
 						style={{ overlay: { backgroundColor: 'rgba(15, 10, 20, 0.65)', zIndex: 1 } }}>
 						<Header optionsCount={options?.length || 0}>
@@ -252,16 +252,16 @@ export function CreationModal(props) {
 										options={options}
 										disabled={keyIsUnvailable} />
 						</Header>
-      {newItemType &&
-      <Content>
-						  <TextInput
-						  		value={newItemKey}
-          setValue={setNewItemKey}
-          capitalize={true}
-						  		placeholder={l.enterNewItemKey}
-						  		onPressEnter={createNewItem}
-						  		regexp={KEY_REGEXP} />
-						</Content>}
+						{newItemType &&
+								<Content>
+										<TextInput
+												value={newItemKey}
+												setValue={setNewItemKey}
+												capitalize={true}
+												placeholder={l.enterNewItemKey}
+												onPressEnter={createNewItem}
+												regexp={KEY_REGEXP} />
+								</Content>}
 						<Footer>
 								<button key='cancel' onClick={closeModal}>{l.cancel}</button>
 								<button key='confirm' onClick={createNewItem} disabled={disabled} >{l.confirm}</button>

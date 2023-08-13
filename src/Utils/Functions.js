@@ -15,8 +15,9 @@ export function Btn(fileName, urlize) {
 }
 
 export function getIndexFromPath(path) {
-		const pathArray = path.split('.')
-		return pathArray[pathArray.length - 1]?.split('[')?.[1]?.slice(0, -1)
+		const pathArray = path?.split('.')
+		if (!pathArray || pathArray.length < 2) return 0
+		return +pathArray[pathArray.length - 1]?.split('[')?.[1]?.slice(0, -1)
 }
 
 export function getGroupPath(path) {

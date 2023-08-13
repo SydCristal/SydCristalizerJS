@@ -1,4 +1,4 @@
-﻿import { l } from './Localization'
+﻿import { l } from './'
 import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useLanguageContext } from '../../contexts/LanguageContext'
 import { useSelectionContext } from '../../contexts/SelectionContext'
@@ -7,11 +7,18 @@ import { Accordion, AccordionBody, AccordionHeader, AccordionItem } from 'react-
 import { Bg, getIndexFromPath } from '../../Utils'
 import styled, { css } from 'styled-components'
 import { SectionHeading, Button } from '../UI'
-import _ from 'lodash'
+import { get, cloneDeep, update } from 'lodash'
 import { useState, useRef, useEffect } from 'react'
 import { getGroupPath } from '../../Utils/Functions'
 
 const Aside = styled(Accordion)`
+		nav {
+				overflow-y: scroll;
+				max-height: 60vh;
+				padding-right: 20px;
+				display: flex;
+				flex-direction: column;
+		};
 `
 
 const HeaderWrapper = styled.div`
@@ -19,41 +26,41 @@ const HeaderWrapper = styled.div`
 		border: 2px solid transparent;
 		position: relative;
 		&.dragged-clone {
-			background: ${({ cloneBg }) => cloneBg};
-			height: fit-content;
-			position: absolute;
-			z-index: 1000;
-			* {
-				color: wheat;
-			};
-			> .error-tooltip-content {
-				display: none;
-			};
-			&.error-tooltip {
-				background: ${Bg('ErrorTooltip')} left top / cover no-repeat;
-				background-color: rgba(0, 0, 0, 0.3);
-				border: 2px solid maroon;
-				padding: 5px 8px 8px;
-				box-sizing: border-box;
-				> :not(.error-tooltip-content) {
-					display: none;
+				background: ${({ cloneBg }) => cloneBg};
+				height: fit-content;
+				position: absolute;
+				z-index: 1000;
+				* {
+						color: wheat;
 				};
 				> .error-tooltip-content {
-						display: flex;
-						flex-direction: row;
-						div {
-								background: ${Bg('Clear_selected')} center top / cover no-repeat;
-								display: inline-block;
-								width: 20px;
-								height: 20px;
-								margin-right: 5px;
-						};
-						span {
-							font-size: 18px;
-							line-height: 18px;
-						}
+						display: none;
 				};
-			}
+				&.error-tooltip {
+						background: ${Bg('ErrorTooltip')} left top / cover no-repeat;
+						background-color: rgba(0, 0, 0, 0.3);
+						border: 2px solid maroon;
+						padding: 5px 8px 8px;
+						box-sizing: border-box;
+						> :not(.error-tooltip-content) {
+								display: none;
+						};
+						> .error-tooltip-content {
+								display: flex;
+								flex-direction: row;
+								div {
+										background: ${Bg('Clear_selected')} center top / cover no-repeat;
+										display: inline-block;
+										width: 20px;
+										height: 20px;
+										margin-right: 5px;
+								};
+								span {
+										font-size: 18px;
+										line-height: 18px;
+								}
+						};
+				}
 		};
 		${Aside}.dragging & {
 				&.dragged-source > * {
@@ -67,26 +74,26 @@ const HeaderWrapper = styled.div`
 				};
 				background: none;
 				&.targeted {
-					background-color: rgba(82, 0, 137, 0.2);
-					border: 2px solid #45204e;
-					&::before {
-						content: '';
-						background: ${Bg('DropTargetDecoration_left')} left center / contain no-repeat;
-						height: 100%;
-						width: 20px;
-						position: absolute;
-						left: 0;
-						top: 0;
-					};
-					&::after {
-						content: '';
-						background: ${Bg('DropTargetDecoration_right')} right center / contain no-repeat;
-						height: 100%;
-						width: 20px;
-						position: absolute;
-						right: 0;
-						top: 0;
-					};
+						background-color: rgba(82, 0, 137, 0.2);
+						border: 2px solid #45204e;
+						&::before {
+								content: '';
+								background: ${Bg('DropTargetDecoration_left')} left center / contain no-repeat;
+								height: 100%;
+								width: 20px;
+								position: absolute;
+								left: 0;
+								top: 0;
+						};
+						&::after {
+								content: '';
+								background: ${Bg('DropTargetDecoration_right')} right center / contain no-repeat;
+								height: 100%;
+								width: 20px;
+								position: absolute;
+								right: 0;
+								top: 0;
+						};
 				};
 		};
 `
@@ -170,6 +177,9 @@ const AddElIcon = styled.button`
 const Content = styled(AccordionBody)`
 		margin: ${({ displayed }) => displayed ? '-3px' : 0} 0;
 		padding: ${({ displayed }) => displayed ? '3px' : 0} 0;
+		&.fully-displayed {
+			overflow: visible !important;
+		};
 `
 
 export default function Navigation() {
@@ -184,8 +194,8 @@ export default function Navigation() {
 		let currentSelection
 		let transformedElements = []
 
-		const cleanTransformation = () => {
-				transformedElements.forEach(el => { el.style.transform = `` })
+		const clearTransformation = () => {
+				transformedElements.forEach(el => { el.style.removeProperty('transform') })
 				transformedElements = []
 		}
 
@@ -218,11 +228,89 @@ export default function Navigation() {
 		}
 
 		let prevTarget
+		const controlCount = modScheme.menu.controls?.length || 0
+
+		const checkIfIsExpanded = el => el?.dataset?.expanded === 'true'
+
+		const checkIfIsRoot = id => ['menu-header', 'mod-header'].includes(id)
+
+		const getDestinationInfo = (isMenuEntity, isDraggedDown, source, target) => {
+				const { dataset: { itemType: sourceType, path: sourcePath } } = source
+				const { id: targetId, dataset: { path: targetPath, itemType: targetType, index: targetIndex } } = target
+				const childrenKeys = target.dataset.childrenKeys?.split(',')
+				const targetParent = target.parentElement?.previousElementSibling
+				const targetIsRoot = checkIfIsRoot(targetId)
+				const targetGroupPath = getGroupPath(targetPath)
+				const targetGroupIndex = getIndexFromPath(targetPath)
+				const prevPath = prevTarget?.dataset?.path || sourcePath
+				let destination
+				let destinationIndex
+				let destinationPath
+				let destinationParent
+				let unavailableKeys = []
+
+				if (isMenuEntity) {
+						if (sourceType === 'subSection') {
+								if (targetType === 'subSection') {
+										destinationIndex = targetIndex
+										destinationPath = targetPath
+										if (isDraggedDown && checkIfIsExpanded(target)) {
+												if (prevPath.startsWith(`${targetPath}.`)) {
+														destinationIndex = +targetIndex - 1
+														destinationPath = `${targetGroupPath}[${targetGroupIndex - 1}]`
+														destination = target.previousElementSibling.previousElementSibling
+												} else {
+														destination = target.nextElementSibling.lastChild.previousElementSibling
+												}
+										} else destination = target
+								} else {
+										if (targetIsRoot || checkIfIsRoot(targetParent?.id)) {
+												destination = document.getElementById('menu.subSections[0]-header')
+												destinationIndex = destination.dataset.index
+												destinationPath = destination.dataset.path
+										} else {
+												destination = isDraggedDown ? target.parentElement.lastChild.previousElementSibling : targetParent
+												destinationIndex = targetParent.dataset.index
+												destinationPath = targetParent.dataset.path
+										}
+								}
+						} else {
+								if (targetIsRoot) {
+										unavailableKeys = childrenKeys
+										destination = document.getElementById('menu.controls[0]-header') || document.getElementById('menu.subSections[0]-header')
+										destinationIndex = 1
+										destinationPath = 'menu.controls[0]'
+								} else {
+										if (targetType === 'subSection') {
+												if (isDraggedDown) {
+														unavailableKeys = childrenKeys
+														destinationPath = `${targetPath}.controls[${checkIfIsExpanded(target) ? 0 : childrenKeys.length}]`
+												} else {
+														if (getIndexFromPath(targetPath)) {
+																destinationParent = document.getElementById(`menu.subSections[${targetGroupIndex - 1}]-header`)
+														} else {
+																destinationParent = document.getElementById('menu-header')
+														}
+														unavailableKeys = destinationParent.dataset.childrenKeys?.split(',')
+														destinationPath = `${destinationParent.dataset.path}.controls[${checkIfIsRoot(destinationParent) ? controlCount : unavailableKeys.length}]`
+												}
+										} else {
+												unavailableKeys = targetParent.dataset.childrenKeys?.split(',')
+												destinationPath = isDraggedDown && targetGroupPath !== getGroupPath(sourcePath) ? `${targetGroupPath}[${targetGroupIndex + 1}]` : targetPath
+										}
+										destination = target
+										destinationIndex = destination.dataset.index
+								}
+						}
+				}
+
+				return { destination, destinationIndex, destinationPath, unavailableKeys }
+		}
 
 		const onMouseMove = e => {
 				const { clientX, clientY } = e
 				const clone = draggedCloneRef.current
-				const source = draggedSourceRef.current
+
 				if (!clone) {
 						window.removeEventListener('mousemove', onMouseMove)
 						window.removeEventListener('mouseup', onMouseUp)
@@ -230,108 +318,131 @@ export default function Navigation() {
 						return
 				}
 
-				const displayErrorTooltip = msg => {
-						clone.classList.add('error-tooltip')
-						clone.querySelector('.error-tooltip-content').querySelector('span').textContent = l[msg]
+				const source = draggedSourceRef.current
+				const content = source.closest('section').lastChild.childNodes
+				const { offsetHeight: sourceHeight, dataset: { key, path: sourcePath, itemType: sourceType, index: sourceIndex } } = source
+
+				const clearDnD = msg => {
+						clearTransformation()
 						removeTarget()
+						if (msg) {
+								clone.classList.add('error-tooltip')
+								clone.querySelector('.error-tooltip-content').querySelector('span').textContent = l[msg]
+						} else {
+								clone.classList.remove('error-tooltip')
+						}
+						source.classList.add('targeted')
 				}
 
-				const { key, path: sourcePath, itemType: sourceType } = source.dataset
-				let sourceIndex = getIndexFromPath(sourcePath) * 2
-				const isMenuEntity = ['section', 'control'].includes(sourceType)
+				const sectionId = source.closest('section').id
+				const isMenuEntity = sectionId === 'mod-menu-navigation-section'
 				clone.style.transform = `translate(${clientX}px, ${clientY}px)`
 
-				const clearDnD = () => {
-						clone.classList.remove('error-tooltip')
-						removeTarget()
-						source.classList.add('targeted')
-						cleanTransformation()
-				}
-
-				if (!e.target?.tagName || !(source.closest('section')?.id === e.target.closest('section')?.id)) return clearDnD()
+				if (!e.target?.tagName || !(sectionId === e.target.closest('section')?.id)) return
 
 				let target = e.target.classList?.contains('navigation-item') ? e.target : e.target.closest('.navigation-item')
 
-				if (!target) {
-						if (!prevTarget) return clearDnD()
-						target = prevTarget
-				}
+				if (!target) return
 
-				if (target.dataset.itemType === 'configurator' || (target.dataset.itemType === 'control' && sourceType !== 'control')) {
-						target = target.parentElement.previousElementSibling
-				}
+				const { id: targetId, dataset: { index: targetIndex } } = target
 
-				const { dataset: { path: targetPath, childrenKeys, itemType: targetType } } = target
+				if (prevTarget?.id === targetId) return
 
-				if (prevTarget !== target) {
-						if (prevTarget) prevTarget.firstChild.style.transform = `translate(0, 0)`
-						prevTarget = target
-				}
+				clone.classList.remove('error-tooltip')
 
+				const isDraggedDown = targetIndex > sourceIndex
+
+				const { destination, destinationIndex, destinationPath, unavailableKeys } = getDestinationInfo(isMenuEntity, isDraggedDown, source, target)
+
+				prevTarget = target
+
+				clearTransformation()
 				if (isMenuEntity) {
-						if (getGroupPath(targetPath) === getGroupPath(sourcePath)) {
-								const parent = target.parentElement
-								let targetIndex = 2 * getIndexFromPath(targetPath)
-								const sourceHeight = source.offsetHeight
+						const displayedContent = document.getElementsByClassName('fully-displayed')
+						for (let i = 0; i < displayedContent.length; i++) displayedContent[i].classList.remove('fully-displayed')
+				}
 
-								if (targetType === 'section') {
-										const controlsCount = modScheme.menu.controls?.length
-										targetIndex += 2 * controlsCount
-										sourceIndex += 2 * controlsCount
-								}
-
-								for (let i = 0; i < parent.childNodes.length; i++) {
-										const targetWrapper = parent.childNodes[i]
-										const child = targetWrapper.dataset?.itemType ? targetWrapper.firstChild : targetWrapper
-										const marginFix = targetType === 'control'  ? 6 : 0
-										if (!child) continue
-										let shift = sourceHeight - marginFix
-										if (targetIndex <= i && i < sourceIndex) {
-												child.style.transform = `translate(0, ${shift}px)`
-												transformedElements.push(child)
-										} else if (sourceIndex < i && i <= targetIndex + 1) {
-												let contentHeight = 0
-												if (i % 2 === 0) {
-														contentHeight = parent.childNodes[i + 1].offsetHeight
-														targetWrapper.style.transform = `translate(0, ${contentHeight}px)`
-														transformedElements.push(targetWrapper)
-												}
-												child.style.transform = `translate(0, ${-contentHeight - shift}px)`
-												transformedElements.push(child)
-										} else {
-												child.style.transform = `translate(0, 0)`
-										}
-								}
+				if (getGroupPath(sourcePath) !== getGroupPath(destinationPath)) {
+						if (destinationPath.startsWith(sourcePath)) {
+								return clearDnD('recursionIsNotAllowed')
+						} else {
+								if (unavailableKeys.includes(key)) return clearDnD('targetContainsKey')
 						}
 				}
 
-				if (targetPath === sourcePath) return clearDnD()
+				if (isMenuEntity) {
+						const startingIndex = isDraggedDown ? +sourceIndex + 1 : +destinationIndex
+						const endingIndex = isDraggedDown ? +destinationIndex : +sourceIndex - 1
 
-				if (targetPath.startsWith(sourcePath)) {
-						return displayErrorTooltip('recursionIsNotAllowed')
-				}
+						const translateElement = item => {
+								if (!item) return
+								const shift = (sourceHeight - (sourceType !== 'subSection' ? 6 : 0)) * (isDraggedDown ? -1 : 1)
+								item.style.transform = `translateY(${shift}px)`
+								transformedElements.push(item)
+						}
 
-				if (childrenKeys && childrenKeys.split(',').includes(key)) {
-						const source = draggedSourceRef.current
-						const { dataset: { path: parentPath } } = source.parentElement.previousElementSibling
-						if (targetPath === parentPath) return clearDnD()
-						return displayErrorTooltip('targetContainsKey')
+						const translateContent = arr => {
+								let suspendedTranslations = []
+								for (let i = 0; i < arr.length; i++) {
+										const item = arr[i]
+										const { dataset: { index: itemIndex, itemType } } = item
+
+										if (itemIndex) {
+												if (itemIndex >= startingIndex && itemIndex <= endingIndex) {
+														if (sourceType !== 'subSection' && itemType === 'subSection') {
+																if (isDraggedDown) {
+																		if (!checkIfIsExpanded(item)) {
+																				suspendedTranslations.push(item)
+																				continue
+																		} else suspendedTranslations.forEach(child => translateElement(child.firstChild))
+																} else {
+																		if (+itemIndex === startingIndex && i >= 2) {
+																				const prevItem = arr[i - 2]
+																				if (prevItem.dataset.itemType === 'subSection' && !checkIfIsExpanded(prevItem)) {
+																						translateElement(prevItem.firstChild)
+																				}
+																		}
+																}
+														}
+														translateElement(item.firstChild)
+												}
+										} else {
+												const subHeader = arr[i - 1]
+												const subHeaderIndex = subHeader?.dataset?.index
+												if (!checkIfIsExpanded(subHeader)) continue
+
+												const shouldTranslateWholeContent = isDraggedDown && sourceType === 'subSection' && subHeaderIndex <= endingIndex && subHeaderIndex >= startingIndex
+
+												item.classList.add('fully-displayed')
+												if (shouldTranslateWholeContent) {
+														item.childNodes.forEach(child => translateElement(child.firstChild))
+												} else {
+														translateContent(item.childNodes)
+												}
+										}
+								}
+						}
+
+						clearTransformation()
+
+						translateContent(content)
 				}
 
 				document.getElementById('navigation')?.querySelector('.targeted')?.classList.remove('targeted')
-				target.classList.add('targeted')
-				droppableTargetRef.current = target
+				destination.classList.add('targeted')
+				droppableTargetRef.current = destinationPath
 		}
 
 		const onMouseDown = e => {
 				e.preventDefault()
+				e.stopPropagation()
 				const { clientX, clientY, target } = e
 				if (target?.tagName === 'BUTTON') return
 				const source = target.classList.contains('navigation-item') ? target : target.closest('.navigation-item')
 
 				if (source) {
 						source.closest('aside').classList.add('dragging')
-						if (source?.dataset?.itemType === 'section') source.nextSibling.style.display = 'none'
+						if (source?.dataset?.itemType === 'subSection') source.nextSibling.style.display = 'none'
 						const { clientWidth, clientHeight } = source
 						const { left, top } = source.getBoundingClientRect()
 						const clone = source.cloneNode(true)
@@ -357,7 +468,9 @@ export default function Navigation() {
 		}
 
 		const onMouseUp = e => {
-				cleanTransformation()
+				clearTransformation()
+				const displayedContent = document.getElementsByClassName('fully-displayed')
+				for (let i = 0; i < displayedContent.length; i++) { displayedContent[i].classList.remove('fully-displayed') }
 				let source = draggedSourceRef.current
 				if (source) {
 						source.closest('aside').classList.remove('dragging')
@@ -372,51 +485,45 @@ export default function Navigation() {
 						clone.remove()
 				}
 
-				let target = droppableTargetRef.current
-				if (target) {
-						removeTarget()
-				}
+				let targetPath = droppableTargetRef.current
+				removeTarget()
 
-				if (source && target) {
-						const { dataset: { key: sourceKey, path: sourcePath, itemType: sourceType } } = source
-						const { dataset: { path: targetPath, itemType: targetType } } = target
-						const isMenuEntity = ['section', 'control'].includes(sourceType)
-						const updatedModScheme = _.cloneDeep(modScheme)
-						const sourceObj = _.get(updatedModScheme, sourcePath)
-						const sourceGroup = `${sourceType}s`
-						if (isMenuEntity) {
-								const targetArrPath = sourceType === targetType ? getGroupPath(targetPath) : `${targetPath}.${sourceGroup}`
-								let targetArr = _.get(modScheme, targetArrPath) || []
-								const targetIndex = sourceType === targetType ? getIndexFromPath(targetPath) : targetArr.length
-
-								const sourceArrPath = getGroupPath(sourcePath)
-								if (targetArrPath === sourceArrPath) {
+				if (source && targetPath) {
+						const { dataset: { key: sourceKey, path: sourcePath } } = source
+						const updatedModScheme = cloneDeep(modScheme)
+						const sourceObj = get(updatedModScheme, sourcePath)
+						//if (isMenuEntity) {
+								const targetGroupPath = getGroupPath(targetPath)
+								const targetGroupIndex = getIndexFromPath(targetPath)
+								let targetArr = get(modScheme, targetGroupPath) || []
+								const sourceGroupPath = getGroupPath(sourcePath)
+								if (targetGroupPath === sourceGroupPath) {
 										targetArr = targetArr.filter(({ key }) => key !== sourceKey)
 								} else {
-										const sourceArr = _.get(modScheme, sourceArrPath).filter(({ key }) => key !== sourceKey)
-										_.update(updatedModScheme, sourceArrPath, () => sourceArr)
+										const sourceArr = get(modScheme, sourceGroupPath).filter(({ key }) => key !== sourceKey)
+										update(updatedModScheme, sourceGroupPath, () => sourceArr)
 								}
 
-								targetArr.splice(targetIndex, 0, sourceObj)
-								_.update(updatedModScheme, targetArrPath, () => targetArr)
-								setSelection(`${targetArrPath}[${targetIndex}]`)
-						} else {
-								let updatedObj
+								targetArr.splice(targetGroupIndex, 0, sourceObj)
+								update(updatedModScheme, targetGroupPath, () => targetArr)
+								setSelection(`${targetGroupPath}[${targetGroupIndex}]`)
+						//} else {
+						//		let updatedObj
 
-								_.update(updatedModScheme, targetPath, targetObj => {
-										updatedObj = _.cloneDeep(targetObj)
-										if (updatedObj[sourceGroup]) {
-												updatedObj[sourceGroup].push(sourceObj)
-										} else {
-												updatedObj[sourceGroup] = [sourceObj]
-										}
+						//		_.update(updatedModScheme, targetPath, targetObj => {
+						//				updatedObj = _.cloneDeep(targetObj)
+						//				if (updatedObj[sourceGroup]) {
+						//						updatedObj[sourceGroup].push(sourceObj)
+						//				} else {
+						//						updatedObj[sourceGroup] = [sourceObj]
+						//				}
 
-										return updatedObj
-								})
+						//				return updatedObj
+						//		})
 
-								_.update(updatedModScheme, getGroupPath(sourcePath), arr => arr.filter(({ key }) => key !== sourceKey))
-								setSelection(`${targetPath}.${sourceGroup}[${updatedObj[sourceGroup].length - 1}]`)
-						}
+						//		_.update(updatedModScheme, getGroupPath(sourcePath), arr => arr.filter(({ key }) => key !== sourceKey))
+						//		setSelection(`${targetPath}.${sourceGroup}[${updatedObj[sourceGroup].length - 1}]`)
+						//}
 						setModScheme(updatedModScheme)
 				}
 
@@ -425,11 +532,11 @@ export default function Navigation() {
 		}
 
 		const buildAccordionItem = (el, displayed = true, depth = 0) => {
-				const { key, type, configurators, modules, sections, controls, path, namespace = modScheme.key } = el
+				const { key, type, index, configurators, modules, subSections, controls, path, namespace = modScheme.key } = el
 				const onTitleClick = () => setSelection(path)
 				const selected = selection === path
 				const hasSelectedDescendant = !selected && selection?.startsWith(path)
-				const expandable = !!(modules?.length || configurators?.length || sections?.length || controls?.length) && type !== 'configurator'
+				const expandable = !!(modules?.length || configurators?.length || subSections?.length || controls?.length)
 
 				const buildAccordionHeader = expanded => {
 						const height = `${depth === 0 ? 35 : 30}px`
@@ -479,7 +586,7 @@ export default function Navigation() {
 
 						if (configurators) childrenKeys.push(...configurators.map(({ key }) => key))
 						if (modules) childrenKeys.push(...modules.map(({ key }) => key))
-						if (sections) childrenKeys.push(...sections.map(({ key }) => key))
+						if (subSections) childrenKeys.push(...subSections.map(({ key }) => key))
 						if (controls) childrenKeys.push(...controls.map(({ key }) => key))
 
 						const onAddElClick = e => {
@@ -491,11 +598,12 @@ export default function Navigation() {
 
 						return (
 								<HeaderWrapper
+										data-position-index={index}
 										data-key={key}
 										data-path={path}
 										data-item-type={type}
 										data-children-keys={childrenKeys.join(',')}
-										data-expanded={expanded ? 'true' : 'false'}
+										data-expanded={expandable && expanded ? 'true' : 'false'}
 										id={`${path}-header`}
 										className='navigation-item'
 										{...wrapperStyles}>
@@ -517,7 +625,7 @@ export default function Navigation() {
 												{!isLeaf &&
 														<AddElIcon
 																onClick={onAddElClick}
-																		{...addElIconStyles} />}
+																{...addElIconStyles} />}
 										</HeaderContent>
 								</HeaderWrapper>
 						)
@@ -529,7 +637,7 @@ export default function Navigation() {
 								{({ open }) => (<>
 										{buildAccordionHeader(open)}
 										<Content displayed={open}>
-												{['modules', 'configurators', 'controls', 'sections'].map(group => {
+												{['modules', 'configurators', 'controls', 'subSections'].map(group => {
 														return el[group]?.map((subEl, index) => {
 																subEl = {
 																		...subEl,
@@ -539,7 +647,6 @@ export default function Navigation() {
 																return buildAccordionItem(subEl, displayed && open, depth + 1)
 														})
 												})}
-												<div style={{ height: '3px' }}></div>
 										</Content>
 								</>)}
 						</AccordionItem>
@@ -570,12 +677,12 @@ export default function Navigation() {
 						<SectionHeading>{l.navigation}</SectionHeading>
 						<Button btn='LongSwitch' onClick={onDisplayModeSwitchClick} styles={switchStyles}>
 								{displayNames ? l.displayKeys : l.displayNames}
-						</Button>
-						<section id='mod-structure-navigation-section'>
-								{buildAccordionItem(mod)}
-						</section><section id='mod-menu-navigation-section'>
-								{buildAccordionItem(menu)}
-						</section>
+						</Button><nav>
+								<section id='mod-structure-navigation-section'>
+										{buildAccordionItem(mod)}
+								</section><section id='mod-menu-navigation-section'>
+										{buildAccordionItem(menu)}
+								</section></nav>
 				</Aside>
 		)
 }

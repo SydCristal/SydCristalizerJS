@@ -1,4 +1,4 @@
-import { l } from './Localization'
+import { l } from './'
 import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useLanguageContext } from '../../contexts/LanguageContext'
 //import { Bg } from '../../Utils'
