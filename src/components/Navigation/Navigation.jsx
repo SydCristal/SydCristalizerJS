@@ -380,10 +380,21 @@ export default function Navigation() {
 						const endingIndex = isDraggedDown ? +destinationIndex : +sourceIndex - 1
 
 						const translateElement = item => {
-								if (!item) return
-								const shift = (sourceHeight - (sourceType !== 'subHeader' ? 6 : 0)) * (isDraggedDown ? -1 : 1)
-								item.style.transform = `translateY(${shift}px)`
-								transformedElements.push(item)
+								const child = item?.firstChild
+								if (!child) return
+								const { itemType } = item.dataset
+								let marginFix 
+
+								if (sourceType === 'control' && itemType === 'subHeader') {
+										const parentShift = 6 * (isDraggedDown ? 1 : -1)
+										item.style.transform = `translateY(${parentShift}px)`
+										marginFix = 0
+										transformedElements.push(item)
+								} else marginFix = sourceType === 'control' ? 6 : 0
+								
+								const childShift = (sourceHeight - marginFix) * (isDraggedDown ? -1 : 1)
+								child.style.transform = `translateY(${childShift}px)`
+								transformedElements.push(child)
 						}
 
 						const translateContent = arr => {
@@ -394,22 +405,22 @@ export default function Navigation() {
 
 										if (itemIndex) {
 												if (itemIndex >= startingIndex && itemIndex <= endingIndex) {
-														if (sourceType !== 'subHeader' && itemType === 'subHeader') {
+														if (sourceType === 'control' && itemType === 'subHeader') {
 																if (isDraggedDown) {
 																		if (!checkIfIsExpanded(item)) {
 																				suspendedTranslations.push(item)
 																				continue
-																		} else suspendedTranslations.forEach(child => translateElement(child.firstChild))
+																		} else suspendedTranslations.forEach(child => translateElement(child))
 																} else {
 																		if (+itemIndex === startingIndex && i >= 2) {
 																				const prevItem = arr[i - 2]
 																				if (prevItem.dataset.itemType === 'subHeader' && !checkIfIsExpanded(prevItem)) {
-																						translateElement(prevItem.firstChild)
+																						translateElement(prevItem)
 																				}
 																		}
 																}
 														}
-														translateElement(item.firstChild)
+														translateElement(item)
 												}
 										} else {
 												const subHeader = arr[i - 1]
@@ -420,7 +431,7 @@ export default function Navigation() {
 
 												item.classList.add('fully-displayed')
 												if (shouldTranslateWholeContent) {
-														item.childNodes.forEach(child => translateElement(child.firstChild))
+														item.childNodes.forEach(child => translateElement(child))
 												} else {
 														translateContent(item.childNodes)
 												}
@@ -572,7 +583,7 @@ export default function Navigation() {
 
 						const wrapperStyles = {
 								background: (displayed && selected) ? selectedBg : 'transparent',
-								margin: `${isLeaf ? '-3' : 0}px 0`,
+								margin: `${isLeaf ? -3 : 0}px 0`,
 								cloneBg: `${Bg('NavigationItem_selected')} center center / cover no-repeat`
 						}
 
