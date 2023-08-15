@@ -1,4 +1,5 @@
 import { createContext, useContext, useState } from 'react'
+import { sortGroup, CONTENT_GROUPS } from '../Utils/'
 
 const ModSchemeContext = createContext(null)
 
@@ -8,25 +9,28 @@ const ModSchemeProvider = ({ children }) => {
 		const value = {
 				modScheme,
 				setModScheme: newModScheme => {
-						let structureIndex = 0
-						let menuIndex = 0
+						const indexCounter = {
+								mod: 0,
+								menu: 0
+						}
 
-						const setIndexes = (isMod, item) => {
-								const { controls, subSections, modules, configurators, ...rest } = item
+						const updateStructure = ({ key, ...item }) => {
+								const { path = key, nameSpace = key, ...rest } = item
 								const result = {
-										...rest,
-										index: isMod ? structureIndex : menuIndex
+										...rest, key, path, nameSpace,
+										index: indexCounter[nameSpace.split('.')[0]]++
 								}
 
-								if (isMod) {
-										structureIndex += 1
-								} else {
-										menuIndex += 1
-								}
-
-								['controls', 'subSections', 'modules', 'configurators'].forEach(groupName => {
+								CONTENT_GROUPS.forEach(groupName => {
 										if (item[groupName]?.length) {
-												result[groupName] = item[groupName].map(item => setIndexes(isMod, item))
+												const childGroupPath = `${path}.${groupName}`
+												result[groupName] = item[groupName].sort((a, b) => sortGroup(groupName, a, b)).map((child, i) => {
+														return updateStructure({
+																...child,
+																nameSpace: `${nameSpace}.${child.key}`,
+																path: `${childGroupPath}[${i}]`
+														})
+												})
 										}
 								})
 
@@ -37,18 +41,19 @@ const ModSchemeProvider = ({ children }) => {
 
 						if (newModScheme) {
 								const { menu, mod, ...restProps } = newModScheme
-								const indexedMod = setIndexes(true, mod)
-								const indexedMenu = setIndexes(false, menu)
+								const updatedMod = updateStructure(mod)
+								const updatedMenu = updateStructure(menu)
 
 								result = {
 										...restProps,
-										mod: indexedMod,
-										menu: indexedMenu
+										mod: updatedMod,
+										menu: updatedMenu
 								}
 						}
 
 						localStorage.setItem('modScheme', JSON.stringify(result))
 						setModScheme(result)
+						return result
 				}
 		}
 

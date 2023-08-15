@@ -8,7 +8,7 @@ const Input = styled.input`
   };
 `
 
-export function TextInput({ value, setValue, regexp, placeholder, disabled, onPressEnter, onBlur = () => { }, capitalize }) {
+export function TextInput({ id, value, setValue, regexp, placeholder, disabled, onPressEnter, onBlur = () => { }, capitalize }) {
   const onChange = ({ target: { value } }) => {
     if (regexp && !regexp.test(value) && value !== '') return
     if (capitalize && value !== '') value = `${value[0].toUpperCase()}${value.slice(1)}`
@@ -23,13 +23,9 @@ export function TextInput({ value, setValue, regexp, placeholder, disabled, onPr
     }
   }
 
+  const inputProps = { id, disabled, placeholder, value, onKeyDown, onBlur, onChange }
+
   return (
-    <Input
-      disabled={disabled}
-      placeholder={placeholder}
-      value={value}
-      onKeyDown={onKeyDown}
-      onBlur={onBlur}
-      onChange={onChange} />
+    <Input {...inputProps} />
   )
 }

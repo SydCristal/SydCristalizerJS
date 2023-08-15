@@ -1,5 +1,5 @@
 import styled, { css } from 'styled-components'
-import { Btn, Bg } from '../../Utils'
+import { Btn, Crs } from '../../Utils'
 
 const getBtn = ({ btn, disabled, hovered }) => `${Btn((btn || 'Empty') + (disabled ? '_disabled' : (hovered ? '_hovered' : '')))} center center / contain no-repeat`
 
@@ -9,7 +9,7 @@ const styles = css`
   min-width: 35px;
   min-height: 35px;
   border: none;
-		cursor: ${({ disabled }) => disabled ? Bg('CursorDisabled') + ', not-allowed' : 'pointer'};
+		cursor: ${({ disabled }) => disabled ? Crs('CursorDisabled') + ', not-allowed' : 'pointer'};
 		text-align: center;
   &:hover {
     background: ${props => getBtn({ ...props, hovered: true })};

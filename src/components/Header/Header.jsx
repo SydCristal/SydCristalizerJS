@@ -2,6 +2,7 @@
 import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useLanguageContext } from '../../contexts/LanguageContext'
 import { useSelectionContext } from '../../contexts/SelectionContext'
+import { useEditionContext } from '../../contexts/EditionContext'
 import { LanguageSwitch } from './LanguageSwitch'
 import styled from 'styled-components'
 import { SchemeDownloader, ProjectDownloader, SchemeUploader } from './'
@@ -62,6 +63,7 @@ export default function Header() {
 		const { language } = useLanguageContext()
 		const { modScheme, setModScheme } = useModSchemeContext()
 		const { setSelection } = useSelectionContext()
+		const { setEdition } = useEditionContext()
 		const [modKey, setModKey] = useState(modScheme?.key || '')
 		const disabled = !modScheme?.key
 		l.setLanguage(language)
@@ -69,6 +71,7 @@ export default function Header() {
 		const onClearButtonClick = () => {
 				setModScheme(null)
 				setSelection('')
+				setEdition(null)
 				setModKey('')
 		}
 
@@ -79,15 +82,11 @@ export default function Header() {
 						key: modKey,
 						mod: {
 								key: 'mod',
-								type: 'mod',
-								path: 'mod',
-								position: 'root'
+								type: 'mod'
 						},
 						menu: {
 								key: 'menu',
-								type: 'menu',
-								path: 'menu',
-								position: 'root'
+								type: 'menu'
 						}
 				})
 

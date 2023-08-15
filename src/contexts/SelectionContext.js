@@ -1,9 +1,9 @@
 import { createContext, useContext, useState } from 'react'
 
-const SelectionContext = createContext(null)
+const SelectionContext = createContext('')
 
 const SelectionProvider = ({ children }) => {
-		const [selection, setSelection] = useState(localStorage.getItem('selection') || '')
+		const [selection, setSelection] = useState(localStorage.getItem('selection'))
 
 		const value = {
 				selection,

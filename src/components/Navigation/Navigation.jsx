@@ -4,12 +4,11 @@ import { useLanguageContext } from '../../contexts/LanguageContext'
 import { useSelectionContext } from '../../contexts/SelectionContext'
 import { CreationModal } from '../Modals/CreationModal'
 import { Accordion, AccordionBody, AccordionHeader, AccordionItem } from 'react-headless-accordion'
-import { Bg, getIndexFromPath } from '../../Utils'
+import { Bg, Icn, getIndexFromPath, getGroupPath, sortGroup, getPathFromNameSpace, CONTENT_GROUPS } from '../../Utils'
 import styled, { css } from 'styled-components'
 import { SectionHeading, Button } from '../UI'
 import { get, cloneDeep, update } from 'lodash'
 import { useState, useRef, useEffect } from 'react'
-import { getGroupPath } from '../../Utils/Functions'
 
 const Aside = styled(Accordion)`
 		nav {
@@ -18,11 +17,12 @@ const Aside = styled(Accordion)`
 				padding-right: 20px;
 				display: flex;
 				flex-direction: column;
+				height: 100%;
 		};
 `
 
 const HeaderWrapper = styled.div`
-		${({ cloneBg, targetedBg, ...styles }) => ({ ...styles })};
+		${({ cloneBg, ...styles }) => ({ ...styles })};
 		border: 2px solid transparent;
 		position: relative;
 		&.dragged-clone {
@@ -49,7 +49,7 @@ const HeaderWrapper = styled.div`
 								display: flex;
 								flex-direction: row;
 								div {
-										background: ${Bg('Clear_selected')} center top / cover no-repeat;
+										background: ${Icn('Clear_selected')} center top / cover no-repeat;
 										display: inline-block;
 										width: 20px;
 										height: 20px;
@@ -144,7 +144,7 @@ const Expander = styled(AccordionHeader)`
 		transition: transform 0.3s ease-in-out;
 		cursor: pointer;
 		${Aside}.dragging & {
-				background: ${Bg('NavigationExpander')} center center / contain no-repeat;
+				background: ${Icn('NavigationExpander')} center center / contain no-repeat;
 		};
 		${HeaderWrapper}.dragged-clone & {
 				opacity: 0;
@@ -159,7 +159,7 @@ const DragHandle = styled.div`
 				opacity: 0;
 		};
 		${HeaderWrapper}.dragged-clone & {
-				background: ${Bg('DragHandle_selected')} center center / contain no-repeat;
+				background: ${Icn('DragHandle_selected')} center center / contain no-repeat;
 				opacity: 1;
 		};
 `
@@ -200,9 +200,7 @@ export default function Navigation() {
 		}
 
 		useEffect(() => {
-				if (currentSelection === selection) {
-						return
-				}
+				if (!selection || currentSelection === selection) return
 
 				currentSelection = selection
 
@@ -213,7 +211,7 @@ export default function Navigation() {
 						else current += `.${selectionArr[i]}`
 						const header = document.getElementById(`${current}-header`)
 						if (header?.dataset?.expanded === 'false') {
-								header.querySelector('button').click()
+								header.querySelector('.expander')?.click()
 						}
 				}
 		}, [selection])
@@ -237,11 +235,11 @@ export default function Navigation() {
 		const getDestinationInfo = (isMenuEntity, isDraggedDown, source, target) => {
 				const { dataset: { itemType: sourceType, path: sourcePath } } = source
 				const { id: targetId, dataset: { path: targetPath, itemType: targetType, index: targetIndex } } = target
-				const childrenKeys = target.dataset.childrenKeys?.split(',')
+				const childrenKeys = (target.dataset.childrenKeys !== '' && target.dataset.childrenKeys?.split(',')) || []
 				const targetParent = target.parentElement?.previousElementSibling
 				const targetIsRoot = checkIfIsRoot(targetId)
 				const targetGroupPath = getGroupPath(targetPath)
-				const targetGroupIndex = getIndexFromPath(targetPath)
+				const targetInnerIndex = getIndexFromPath(targetPath)
 				const prevPath = prevTarget?.dataset?.path || sourcePath
 				let destination
 				let destinationIndex
@@ -250,14 +248,14 @@ export default function Navigation() {
 				let unavailableKeys = []
 
 				if (isMenuEntity) {
-						if (sourceType === 'subSection') {
-								if (targetType === 'subSection') {
+						if (sourceType === 'subHeader') {
+								if (targetType === 'subHeader') {
 										destinationIndex = targetIndex
 										destinationPath = targetPath
 										if (isDraggedDown && checkIfIsExpanded(target)) {
 												if (prevPath.startsWith(`${targetPath}.`)) {
 														destinationIndex = +targetIndex - 1
-														destinationPath = `${targetGroupPath}[${targetGroupIndex - 1}]`
+														destinationPath = `${targetGroupPath}[${targetInnerIndex - 1}]`
 														destination = target.previousElementSibling.previousElementSibling
 												} else {
 														destination = target.nextElementSibling.lastChild.previousElementSibling
@@ -265,7 +263,7 @@ export default function Navigation() {
 										} else destination = target
 								} else {
 										if (targetIsRoot || checkIfIsRoot(targetParent?.id)) {
-												destination = document.getElementById('menu.subSections[0]-header')
+												destination = document.getElementById('menu.subHeaders[0]-header')
 												destinationIndex = destination.dataset.index
 												destinationPath = destination.dataset.path
 										} else {
@@ -277,31 +275,41 @@ export default function Navigation() {
 						} else {
 								if (targetIsRoot) {
 										unavailableKeys = childrenKeys
-										destination = document.getElementById('menu.controls[0]-header') || document.getElementById('menu.subSections[0]-header')
+										destination = document.getElementById('menu.controls[0]-header') || document.getElementById('menu.subHeaders[0]-header')
 										destinationIndex = 1
 										destinationPath = 'menu.controls[0]'
 								} else {
-										if (targetType === 'subSection') {
+										if (targetType === 'subHeader') {
 												if (isDraggedDown) {
 														unavailableKeys = childrenKeys
 														destinationPath = `${targetPath}.controls[${checkIfIsExpanded(target) ? 0 : childrenKeys.length}]`
 												} else {
-														if (getIndexFromPath(targetPath)) {
-																destinationParent = document.getElementById(`menu.subSections[${targetGroupIndex - 1}]-header`)
+														if (targetInnerIndex) {
+																destinationParent = document.getElementById(`menu.subHeaders[${targetInnerIndex - 1}]-header`)
 														} else {
 																destinationParent = document.getElementById('menu-header')
 														}
-														unavailableKeys = destinationParent.dataset.childrenKeys?.split(',')
-														destinationPath = `${destinationParent.dataset.path}.controls[${checkIfIsRoot(destinationParent) ? controlCount : unavailableKeys.length}]`
+														unavailableKeys = (destinationParent.dataset.childrenKeys !== '' && destinationParent.dataset.childrenKeys?.split(',')) || []
+														destinationPath = `${destinationParent.dataset.path}.controls[${checkIfIsRoot(destinationParent?.id) ? controlCount : unavailableKeys.length}]`
 												}
 										} else {
 												unavailableKeys = targetParent.dataset.childrenKeys?.split(',')
-												destinationPath = isDraggedDown && targetGroupPath !== getGroupPath(sourcePath) ? `${targetGroupPath}[${targetGroupIndex + 1}]` : targetPath
+												destinationPath = isDraggedDown && (targetGroupPath !== getGroupPath(sourcePath)) ? `${targetGroupPath}[${targetInnerIndex + 1}]` : targetPath
 										}
 										destination = target
 										destinationIndex = destination.dataset.index
 								}
 						}
+				} else {
+						if (targetType === 'configurator') {
+								destination = targetParent
+						} else {
+								destination = target	
+						}
+
+						destinationIndex = destination.dataset.index
+						destinationPath = `${destination.dataset.path}.${sourceType}s[0]`
+						unavailableKeys = destination.dataset.childrenKeys?.split(',')
 				}
 
 				return { destination, destinationIndex, destinationPath, unavailableKeys }
@@ -321,30 +329,32 @@ export default function Navigation() {
 				const source = draggedSourceRef.current
 				const content = source.closest('section').lastChild.childNodes
 				const { offsetHeight: sourceHeight, dataset: { key, path: sourcePath, itemType: sourceType, index: sourceIndex } } = source
+				const sourceParent = source.parentElement.previousElementSibling
 
-				const clearDnD = msg => {
+				const displayError = msg => {
+						clone.classList.add('error-tooltip')
+						clone.querySelector('.error-tooltip-content').querySelector('span').textContent = l[msg]
+				}
+
+				const clearDnD = () => {
+						prevTarget = null
 						clearTransformation()
 						removeTarget()
-						if (msg) {
-								clone.classList.add('error-tooltip')
-								clone.querySelector('.error-tooltip-content').querySelector('span').textContent = l[msg]
-						} else {
-								clone.classList.remove('error-tooltip')
-						}
 						source.classList.add('targeted')
+						clone.classList.remove('error-tooltip')
 				}
 
 				const sectionId = source.closest('section').id
 				const isMenuEntity = sectionId === 'mod-menu-navigation-section'
 				clone.style.transform = `translate(${clientX}px, ${clientY}px)`
 
-				if (!e.target?.tagName || !(sectionId === e.target.closest('section')?.id)) return
+				if (!e.target?.tagName || !(sectionId === e.target.closest('section')?.id)) return clearDnD()
 
 				let target = e.target.classList?.contains('navigation-item') ? e.target : e.target.closest('.navigation-item')
 
-				if (!target) return
+				if (!target) return clearDnD()
 
-				const { id: targetId, dataset: { index: targetIndex } } = target
+				const { id: targetId, dataset: { path: targetPath, index: targetIndex } } = target
 
 				if (prevTarget?.id === targetId) return
 
@@ -357,18 +367,13 @@ export default function Navigation() {
 				prevTarget = target
 
 				clearTransformation()
+
 				if (isMenuEntity) {
 						const displayedContent = document.getElementsByClassName('fully-displayed')
 						for (let i = 0; i < displayedContent.length; i++) displayedContent[i].classList.remove('fully-displayed')
 				}
 
-				if (getGroupPath(sourcePath) !== getGroupPath(destinationPath)) {
-						if (destinationPath.startsWith(sourcePath)) {
-								return clearDnD('recursionIsNotAllowed')
-						} else {
-								if (unavailableKeys.includes(key)) return clearDnD('targetContainsKey')
-						}
-				}
+				if (!isMenuEntity && (sourcePath === targetPath || sourceParent?.dataset?.path === targetPath)) return clearDnD()
 
 				if (isMenuEntity) {
 						const startingIndex = isDraggedDown ? +sourceIndex + 1 : +destinationIndex
@@ -376,7 +381,7 @@ export default function Navigation() {
 
 						const translateElement = item => {
 								if (!item) return
-								const shift = (sourceHeight - (sourceType !== 'subSection' ? 6 : 0)) * (isDraggedDown ? -1 : 1)
+								const shift = (sourceHeight - (sourceType !== 'subHeader' ? 6 : 0)) * (isDraggedDown ? -1 : 1)
 								item.style.transform = `translateY(${shift}px)`
 								transformedElements.push(item)
 						}
@@ -389,7 +394,7 @@ export default function Navigation() {
 
 										if (itemIndex) {
 												if (itemIndex >= startingIndex && itemIndex <= endingIndex) {
-														if (sourceType !== 'subSection' && itemType === 'subSection') {
+														if (sourceType !== 'subHeader' && itemType === 'subHeader') {
 																if (isDraggedDown) {
 																		if (!checkIfIsExpanded(item)) {
 																				suspendedTranslations.push(item)
@@ -398,7 +403,7 @@ export default function Navigation() {
 																} else {
 																		if (+itemIndex === startingIndex && i >= 2) {
 																				const prevItem = arr[i - 2]
-																				if (prevItem.dataset.itemType === 'subSection' && !checkIfIsExpanded(prevItem)) {
+																				if (prevItem.dataset.itemType === 'subHeader' && !checkIfIsExpanded(prevItem)) {
 																						translateElement(prevItem.firstChild)
 																				}
 																		}
@@ -411,7 +416,7 @@ export default function Navigation() {
 												const subHeaderIndex = subHeader?.dataset?.index
 												if (!checkIfIsExpanded(subHeader)) continue
 
-												const shouldTranslateWholeContent = isDraggedDown && sourceType === 'subSection' && subHeaderIndex <= endingIndex && subHeaderIndex >= startingIndex
+												const shouldTranslateWholeContent = isDraggedDown && sourceType === 'subHeader' && subHeaderIndex <= endingIndex && subHeaderIndex >= startingIndex
 
 												item.classList.add('fully-displayed')
 												if (shouldTranslateWholeContent) {
@@ -428,6 +433,14 @@ export default function Navigation() {
 						translateContent(content)
 				}
 
+				if (getGroupPath(sourcePath) !== getGroupPath(destinationPath)) {
+						if (destinationPath.startsWith(`${sourcePath}.`)) {
+								displayError('recursionIsNotAllowed')
+						} else {
+								if (unavailableKeys.includes(key)) displayError('targetContainsKey')
+						}
+				}
+
 				document.getElementById('navigation')?.querySelector('.targeted')?.classList.remove('targeted')
 				destination.classList.add('targeted')
 				droppableTargetRef.current = destinationPath
@@ -442,7 +455,7 @@ export default function Navigation() {
 
 				if (source) {
 						source.closest('aside').classList.add('dragging')
-						if (source?.dataset?.itemType === 'subSection') source.nextSibling.style.display = 'none'
+						if (source?.dataset?.itemType === 'subHeader') source.nextSibling.style.display = 'none'
 						const { clientWidth, clientHeight } = source
 						const { left, top } = source.getBoundingClientRect()
 						const clone = source.cloneNode(true)
@@ -469,6 +482,7 @@ export default function Navigation() {
 
 		const onMouseUp = e => {
 				clearTransformation()
+				let hasError
 				const displayedContent = document.getElementsByClassName('fully-displayed')
 				for (let i = 0; i < displayedContent.length; i++) { displayedContent[i].classList.remove('fully-displayed') }
 				let source = draggedSourceRef.current
@@ -481,6 +495,7 @@ export default function Navigation() {
 
 				const clone = draggedCloneRef.current
 				if (clone) {
+						hasError = clone.classList?.contains('error-tooltip')
 						draggedCloneRef.current = null
 						clone.remove()
 				}
@@ -488,15 +503,17 @@ export default function Navigation() {
 				let targetPath = droppableTargetRef.current
 				removeTarget()
 
-				if (source && targetPath) {
-						const { dataset: { key: sourceKey, path: sourcePath } } = source
+				if (source && targetPath && !hasError) {
+						const sectionId = source.closest('section').id
+						const isMenuEntity = sectionId === 'mod-menu-navigation-section'
+						const { dataset: { key: sourceKey, path: sourcePath, itemType: sourceType } } = source
 						const updatedModScheme = cloneDeep(modScheme)
-						const sourceObj = get(updatedModScheme, sourcePath)
-						//if (isMenuEntity) {
+						const sourceObj = cloneDeep(get(updatedModScheme, sourcePath))
+						const sourceGroupPath = getGroupPath(sourcePath)
+						if (isMenuEntity) {
 								const targetGroupPath = getGroupPath(targetPath)
-								const targetGroupIndex = getIndexFromPath(targetPath)
+								const targetInnerIndex = getIndexFromPath(targetPath)
 								let targetArr = get(modScheme, targetGroupPath) || []
-								const sourceGroupPath = getGroupPath(sourcePath)
 								if (targetGroupPath === sourceGroupPath) {
 										targetArr = targetArr.filter(({ key }) => key !== sourceKey)
 								} else {
@@ -504,27 +521,35 @@ export default function Navigation() {
 										update(updatedModScheme, sourceGroupPath, () => sourceArr)
 								}
 
-								targetArr.splice(targetGroupIndex, 0, sourceObj)
+								targetArr.splice(targetInnerIndex, 0, sourceObj)
 								update(updatedModScheme, targetGroupPath, () => targetArr)
-								setSelection(`${targetGroupPath}[${targetGroupIndex}]`)
-						//} else {
-						//		let updatedObj
+								setModScheme(updatedModScheme)
+								setSelection(targetPath)
+						} else {
+								const sourceGroup = `${sourceType}s`
+								let updatedObj
+								let index
+								targetPath = targetPath.split('.').slice(0, -1).join('.')
 
-						//		_.update(updatedModScheme, targetPath, targetObj => {
-						//				updatedObj = _.cloneDeep(targetObj)
-						//				if (updatedObj[sourceGroup]) {
-						//						updatedObj[sourceGroup].push(sourceObj)
-						//				} else {
-						//						updatedObj[sourceGroup] = [sourceObj]
-						//				}
+							 update(updatedModScheme, targetPath, targetObj => {
+										updatedObj = cloneDeep(targetObj)
+										if (updatedObj[sourceGroup]) {
+												updatedObj[sourceGroup] = [...updatedObj[sourceGroup], sourceObj].sort((a, b) => sortGroup(sourceGroup, a, b))
+												index = updatedObj[sourceGroup].findIndex(({ key }) => key === sourceKey)
+										} else {
+												updatedObj[sourceGroup] = [sourceObj]
+												index = 0
+										}
 
-						//				return updatedObj
-						//		})
+										return updatedObj
+								})
 
-						//		_.update(updatedModScheme, getGroupPath(sourcePath), arr => arr.filter(({ key }) => key !== sourceKey))
-						//		setSelection(`${targetPath}.${sourceGroup}[${updatedObj[sourceGroup].length - 1}]`)
-						//}
-						setModScheme(updatedModScheme)
+								update(updatedModScheme, sourceGroupPath, arr => arr.filter(({ key }) => key !== sourceKey))
+								const newModScheme = setModScheme(updatedModScheme)
+								const target = document?.getElementById(`${targetPath}-header`)
+								const targetNameSpace = target?.dataset?.nameSpace
+								setSelection(getPathFromNameSpace(newModScheme, `${targetNameSpace}.${sourceKey}`))
+						}
 				}
 
 				window.removeEventListener('mousemove', onMouseMove)
@@ -532,11 +557,11 @@ export default function Navigation() {
 		}
 
 		const buildAccordionItem = (el, displayed = true, depth = 0) => {
-				const { key, type, index, configurators, modules, subSections, controls, path, namespace = modScheme.key } = el
+				const { key, type, index, configurators, modules, subHeaders, controls, path, nameSpace = modScheme.key } = el
 				const onTitleClick = () => setSelection(path)
 				const selected = selection === path
 				const hasSelectedDescendant = !selected && selection?.startsWith(path)
-				const expandable = !!(modules?.length || configurators?.length || subSections?.length || controls?.length)
+				const expandable = !!(modules?.length || configurators?.length || subHeaders?.length || controls?.length)
 
 				const buildAccordionHeader = expanded => {
 						const height = `${depth === 0 ? 35 : 30}px`
@@ -547,8 +572,7 @@ export default function Navigation() {
 
 						const wrapperStyles = {
 								background: (displayed && selected) ? selectedBg : 'transparent',
-								targetedBg: `${Bg('Navigation' + (depth === 0 ? 'Mod' : 'Item') + '_targeted')} center center / cover no-repeat`,
-								margin: isLeaf ? '-3px 0 -3px' : '',
+								margin: `${isLeaf ? '-3' : 0}px 0`,
 								cloneBg: `${Bg('NavigationItem_selected')} center center / cover no-repeat`
 						}
 
@@ -563,16 +587,16 @@ export default function Navigation() {
 						}
 
 						const expanderStyles = {
-								background: `${Bg('NavigationExpander' + (selected ? '_selected' : ''))} center center / contain no-repeat`,
+								background: `${Icn('NavigationExpander' + (selected ? '_selected' : ''))} center center / contain no-repeat`,
 								transform: `rotate(${expanded ? -180 : 0}deg)`
 						}
 
 						const addElIconStyles = {
-								background: `${Bg('AddEl' + (selected ? '_selected' : ''))} center center / contain no-repeat`,
+								background: `${Icn('AddEl' + (selected ? '_selected' : ''))} center center / contain no-repeat`,
 						}
 
 						const dragHandleStyles = {
-								background: `${Bg('DragHandle' + (selected ? '_selected' : ''))} center center / contain no-repeat`,
+								background: `${Icn('DragHandle' + (selected ? '_selected' : ''))} center center / contain no-repeat`,
 								marginRight: `${(depth - 1) * 15 + 5}px`
 						}
 
@@ -586,7 +610,7 @@ export default function Navigation() {
 
 						if (configurators) childrenKeys.push(...configurators.map(({ key }) => key))
 						if (modules) childrenKeys.push(...modules.map(({ key }) => key))
-						if (subSections) childrenKeys.push(...subSections.map(({ key }) => key))
+						if (subHeaders) childrenKeys.push(...subHeaders.map(({ key }) => key))
 						if (controls) childrenKeys.push(...controls.map(({ key }) => key))
 
 						const onAddElClick = e => {
@@ -598,7 +622,8 @@ export default function Navigation() {
 
 						return (
 								<HeaderWrapper
-										data-position-index={index}
+										data-index={index}
+										data-name-space={nameSpace}
 										data-key={key}
 										data-path={path}
 										data-item-type={type}
@@ -615,7 +640,7 @@ export default function Navigation() {
 												{expandable &&
 														<Expander
 																onClick={onExpanderClick}
-																className={`expander-${expanded ? 'up' : 'down'}`}
+																className={`expander expander-${expanded ? 'up' : 'down'}`}
 																{...expanderStyles} />}
 												<Title onClick={onTitleClick}>
 														{isLeaf ?
@@ -637,12 +662,12 @@ export default function Navigation() {
 								{({ open }) => (<>
 										{buildAccordionHeader(open)}
 										<Content displayed={open}>
-												{['modules', 'configurators', 'controls', 'subSections'].map(group => {
-														return el[group]?.map((subEl, index) => {
+												{CONTENT_GROUPS.map(groupName => {
+														return el[groupName]?.map((subEl, index) => {
 																subEl = {
 																		...subEl,
-																		path: `${path}.${group}[${index}]`,
-																		namespace: `${namespace}.${subEl.key}`
+																		path: `${path}.${groupName}[${index}]`,
+																		nameSpace: `${nameSpace}.${subEl.key}`
 																}
 																return buildAccordionItem(subEl, displayed && open, depth + 1)
 														})

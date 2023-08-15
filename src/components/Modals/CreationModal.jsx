@@ -4,10 +4,11 @@ import { useLanguageContext } from '../../contexts/LanguageContext'
 import { useModSchemeContext } from '../../contexts/ModSchemeContext'
 import { useSelectionContext } from '../../contexts/SelectionContext'
 import { l } from './'
-import { Bg, KEY_REGEXP } from '../../Utils'
-import _ from 'lodash'
+import { Bg, Icn, KEY_REGEXP, getPathFromNameSpace } from '../../Utils'
+import { update, cloneDeep } from 'lodash'
 import { SelectInput, TextInput } from '../UI'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import * as React from 'react'
 
 const Modal = styled(ReactModal)`
 		background: ${Bg('CreationModal')} center center / cover no-repeat;
@@ -27,7 +28,7 @@ const Modal = styled(ReactModal)`
  `
 
 const expander = css`;
-  background: ${Bg('CreationModalSelectExpander')} center center / cover no-repeat;
+  background: ${Icn('CreationModalSelectExpander')} center center / cover no-repeat;
   top: 42px;
   width: 25px;
   height: 25px;
@@ -165,10 +166,15 @@ export function CreationModal(props) {
 		const { modScheme, setModScheme } = useModSchemeContext()
 		const { setSelection } = useSelectionContext()
 		const [newItemType, setNewItemType] = useState(null)
-		const [newItemKey, setNewItemKey] = useState('')
-		const { path, modules = [], configurators = [], controls = [], subSections = [], type, onClose } = props
-		const unavailableKeys = [...modules, ...configurators, ...controls, ...subSections].map(({ key }) => key)
-		if (!props?.path) return
+  const [newItemKey, setNewItemKey] = useState('')
+		const { path, modules = [], configurators = [], controls = [], subHeaders = [], type, onClose } = props
+		const unavailableKeys = [...modules, ...configurators, ...controls, ...subHeaders].map(({ key }) => key)
+
+  useEffect(() => {
+    if (!!newItemType) document.getElementById('creation-modal-key-input').focus()
+  }, [newItemType])
+
+  if (!props?.path) return
 
 		l.setLanguage(language)
 		let options = []
@@ -189,10 +195,10 @@ export function CreationModal(props) {
 						break
 				case 'menu':
 						options.push({
-								value: 'subSection',
-								label: l.subSection
+								value: 'subHeader',
+								label: l.subHeader
 						})
-				case 'subSection':
+				case 'subHeader':
 						options.push({
 								value: 'control',
 								label: l.control
@@ -216,12 +222,15 @@ export function CreationModal(props) {
 		const groupName = `${newItemType}s`
 
 		label = keyIsUnvailable ? l.keyIsUnvailable : (label ? `${l.new} ${(label || newItemType).toLowerCase()}` : '')
-		const disabled = !newItemType || !newItemKey || keyIsUnvailable
+  const disabled = !newItemType || !newItemKey || keyIsUnvailable
+
 		const createNewItem = () => {
 				if (disabled) return
-				let updatedModScheme = _.cloneDeep(modScheme)
-				_.update(updatedModScheme, path, obj => {
-						const newItem = { key: newItemKey, type: newItemType }
+				let updatedModScheme = cloneDeep(modScheme)
+    let nameSpace
+    update(updatedModScheme, path, obj => {
+      nameSpace = `${obj.nameSpace}.${newItemKey}`
+      const newItem = { key: newItemKey, type: newItemType, nameSpace }
 						if (!obj[groupName]) {
 								obj[groupName] = [newItem]
 						} else {
@@ -229,11 +238,20 @@ export function CreationModal(props) {
 						}
 
 						return obj
-				})
+    })
 
 				closeModal()
-				setModScheme(updatedModScheme)
-				setSelection(`${path}.${groupName}[${props[groupName]?.length || 0}]`)
+    const newModScheme = setModScheme(updatedModScheme)
+
+    let selectedPath
+
+    if (path.split('.')[0] === 'menu') {
+      selectedPath = `${path}.${groupName}[${props[groupName]?.length || 0}]`
+    } else {
+      selectedPath = getPathFromNameSpace(newModScheme, nameSpace)
+    }
+
+    setSelection(selectedPath)
 		}
 
 		return (
@@ -254,7 +272,8 @@ export function CreationModal(props) {
 						</Header>
 						{newItemType &&
 								<Content>
-										<TextInput
+          <TextInput
+            id='creation-modal-key-input'
 												value={newItemKey}
 												setValue={setNewItemKey}
 												capitalize={true}
